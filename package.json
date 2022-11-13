@@ -8,10 +8,11 @@
   "private": false,
   "scripts": {
     "build": "tsc",
-    "start": "env-cmd -f .env ts-node ./src/index.ts",
+    "start": "env-cmd -f .env ts-node -r tsconfig-paths/register ./src/index.ts",
     "prepare": "husky install"
   },
   "dependencies": {
+    "@prisma/client": "^4.6.1",
     "eris": "^0.17.1"
   },
   "devDependencies": {
@@ -24,7 +25,9 @@
     "eslint": "^8.27.0",
     "eslint-plugin-react": "^7.31.10",
     "husky": "^8.0.0",
+    "prisma": "^4.6.1",
     "ts-node": "^10.9.1",
+    "tsconfig-paths": "^4.1.0",
     "tslib": "^2.4.1",
     "typescript": "^4.8.4"
   }

@@ -1,9 +1,10 @@
 import { Constants, Interaction } from "eris";
 import { StructuredCommand } from "../../types/commands";
+import { db } from '@src/db';
 
 export const testCommand: StructuredCommand = async (interaction)=>{
   const msg = await interaction.createMessage({
-    content: `ping random number: ${Math.random()}`,
+    content: `ping random number: ${Math.random()}, db test size: ${await db.test.count()}`,
     components:[
       {
         components: [

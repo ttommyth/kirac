@@ -105,3 +105,7 @@ dist
 
 # VSCode
 .history
+
+# Prisma
+dev.db
+dev.db-journal

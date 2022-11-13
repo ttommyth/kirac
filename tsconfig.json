@@ -5,7 +5,14 @@
   "compilerOptions": {
     "target": "ES2017",
     "module": "commonJs",
-    "esModuleInterop": true
+    "sourceMap": true,
+    "outDir": "dist",
+    "strict": true,    
+    "esModuleInterop": true,
+    "baseUrl": "src",
+    "paths": {
+      "@src/*":["./*"]
+    }
   },
   // Most ts-node options can be specified here using their programmatic names.
   "ts-node": {
@@ -16,7 +23,7 @@
     "files": true,
 
     "compilerOptions": {
-      // compilerOptions specified here will override those declared below,
+      // compilerOptions specified here will override those declared above,
       // but *only* in ts-node.  Useful if you want ts-node and tsc to use
       // different options with a single tsconfig.json.
     }
