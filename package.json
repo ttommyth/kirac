@@ -1,14 +1,13 @@
 {
   "name": "kirac",
   "version": "0.0.1",
-  "main": "index.js",
   "repository": "https://github.com/ttommyth/kirac.git",
   "author": "ttommyth <ttommyth@gmail.com>",
   "license": "MIT",
   "private": false,
   "scripts": {
+    "dev": "env-cmd -f .env nodemon -L -e ts,tsx --watch src src/index.ts",
     "build": "tsc",
-    "tailwind:css": "postcss public/styles/tailwind.css -o public/styles/tailwind-dist.css",
     "start": "env-cmd -f .env ts-node -r tsconfig-paths/register ./src/index.ts",
     "prepare": "husky install"
   },
@@ -25,6 +24,9 @@
   "devDependencies": {
     "@commitlint/cli": "^17.2.0",
     "@commitlint/config-conventional": "^17.2.0",
+    "@swc/cli": "^0.1.57",
+    "@swc/core": "^1.3.15",
+    "@swc/helpers": "^0.4.12",
     "@types/node": "^18.11.9",
     "@types/react": "^18.0.25",
     "@types/react-dom": "^18.0.8",
@@ -34,7 +36,9 @@
     "eslint": "^8.27.0",
     "eslint-plugin-react": "^7.31.10",
     "husky": "^8.0.0",
+    "nodemon": "^2.0.20",
     "prisma": "^4.6.1",
+    "regenerator-runtime": "^0.13.10",
     "ts-node": "^10.9.1",
     "tsconfig-paths": "^4.1.0",
     "tslib": "^2.4.1",

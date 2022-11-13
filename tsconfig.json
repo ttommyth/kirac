@@ -22,7 +22,8 @@
     "transpileOnly": true,
 
     "files": true,
-
+    "swc": true,
+    "require": ["tsconfig-paths/register"],
     "compilerOptions": {
       // compilerOptions specified here will override those declared above,
       // but *only* in ts-node.  Useful if you want ts-node and tsc to use

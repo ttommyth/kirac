@@ -7,8 +7,9 @@ import fs from 'fs';
 import { Resvg } from '@resvg/resvg-js';
 
 export const testCommand: StructuredCommand = async (interaction)=>{
+  console.debug(interaction.data.options)
   const msg = await interaction.createMessage({
-    content: `ping random number: ${Math.random()}, db test size: ${await db.test.count()}`,
+    content: `ping random number: ${Math.random()} db test size: ${await db.test.count()} itemName:${interaction.data?.options?.find(it=>it.name=="itemname")?.value??""}`,
     components:[
       {
         components: [
@@ -87,14 +88,7 @@ testCommand.structure={
     {
       type:Constants["ApplicationCommandOptionTypes"]["STRING"],
       name:"itemname",
-      description:"test",
-      options:[
-        {
-          type:Constants["ApplicationCommandOptionTypes"]["STRING"],
-          name:"itemname2",
-          description:"test"
-        }
-      ]
+      description:"test"
     }
   ]
 }
