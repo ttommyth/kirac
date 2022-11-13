@@ -14,12 +14,16 @@ bot.on('ready', async () => {
 })
 // Stupid ass interaction creation event
 bot.on('interactionCreate', async (interaction) => {
-  if(interaction.type==Constants["InteractionTypes"]["APPLICATION_COMMAND"]){
-    const targetCommand = Object.values(Commands).filter(it=>it.structure?.name == (interaction as CommandInteraction<TextableChannel>)?.data?.name);
-    targetCommand.forEach(it=>it?.(interaction as any));
-  }else if(interaction.type==Constants["InteractionTypes"]["MESSAGE_COMPONENT"]){
-    const targetCommand = Object.values(Commands).filter(it=>it.structure?.name == (interaction as ComponentInteraction<TextableChannel>)?.message?.interaction?.name);
-    targetCommand.forEach(it=>it?.onComponentInteraction?.(interaction as any));
+  try{
+    if(interaction.type==Constants["InteractionTypes"]["APPLICATION_COMMAND"]){
+      const targetCommand = Object.values(Commands).filter(it=>it.structure?.name == (interaction as CommandInteraction<TextableChannel>)?.data?.name);
+      await Promise.all(targetCommand.map(it=>it?.(interaction as any)));
+    }else if(interaction.type==Constants["InteractionTypes"]["MESSAGE_COMPONENT"]){
+      const targetCommand = Object.values(Commands).filter(it=>it.structure?.name == (interaction as ComponentInteraction<TextableChannel>)?.message?.interaction?.name);
+      await Promise.all(targetCommand.map(it=>it?.onComponentInteraction?.(interaction as any)));
+    }
+  }catch(err){
+    console.error(err)
   }
 })
 
