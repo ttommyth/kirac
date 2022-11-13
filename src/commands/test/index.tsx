@@ -40,7 +40,7 @@ testCommand.onComponentInteraction=async(interaction)=>{
       // name:"test.png",
       // file:Buffer.from("iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAABRSURBVDhPzc7LCkAhCEVR//+nDaMG2fGFg9oQl4q7krjZhwBRzQwB2XtoaoIW0J7A+1nyb0F6ogOIXpOuCdd3pnWUC0gWsPEUYC0UPi30GmAe9nilhTwBABYAAAAASUVORK5CYII=", "base64")
       name: "test.png",
-      file:Buffer.from(new Resvg(await satori(<div style={{ color: 'black' }}>hello, world</div>,{
+      file:Buffer.from(new Resvg(await satori(<div tw="bg-white text-red-500">hello, world</div>,{
         width: 600,
         height: 400,
         fonts: [

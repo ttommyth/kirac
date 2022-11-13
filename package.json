@@ -8,17 +8,15 @@
   "private": false,
   "scripts": {
     "build": "tsc",
+    "tailwind:css": "postcss public/styles/tailwind.css -o public/styles/tailwind-dist.css",
     "start": "env-cmd -f .env ts-node -r tsconfig-paths/register ./src/index.ts",
     "prepare": "husky install"
   },
   "dependencies": {
     "@prisma/client": "^4.6.1",
     "@resvg/resvg-js": "^2.1.0",
-    "autoprefixer": "^10.4.13",
     "eris": "^0.17.1",
     "node-fetch": "^3.3.0",
-    "postcss": "^8.4.19",
-    "postcss-cli": "^10.0.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "satori": "^0.0.44",
