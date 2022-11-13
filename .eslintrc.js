@@ -22,7 +22,8 @@ module.exports = {
   ],
   "rules": {
     "indent": ["error", 2],
-    "@typescript-eslint/no-empty-function": "off",
-    "no-undef": "off"
+    "@typescript-eslint/no-empty-function": "warn",
+    "no-undef": "off",
+    "no-empty": "warn"
   }
 }
