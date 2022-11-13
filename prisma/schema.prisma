@@ -10,6 +10,15 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model Test {
-  id    Int     @id @default(autoincrement())
+model League {
+  id          String     @id @unique
+  realm       String  
+  url         String
+  startAt     DateTime
+  endAt       DateTime?
+  description String
+  registerAt  DateTime
+  delveEvent  Boolean?
+  event       Boolean?
+  shortName   String
 }

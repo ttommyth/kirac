@@ -1,10 +1,10 @@
 import React from 'react';
 import { Constants, Interaction } from "eris";
-import { StructuredCommand } from "../../types/commands";
-import { db } from '@src/db';
+import { db } from '@src/data/db';
 import satori from 'satori'
 import fs from 'fs';
 import { Resvg } from '@resvg/resvg-js';
+import { StructuredCommand } from '@my-types/commands';
 
 export const testCommand: StructuredCommand = async (interaction)=>{
   console.debug(interaction.data.options)
