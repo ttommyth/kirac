@@ -5,14 +5,14 @@ import { CommandClient, CommandInteraction, ComponentInteraction, Constants, Tex
 import * as Commands from "./commands";
 console.log("program start");
 const bot = new CommandClient(`Bot ${process.env.DISCORD_BOT_TOKEN}`, { intents: ['guilds'], maxShards: 'auto',restMode: true })
-// Register the stupid ass command
+
 bot.on('ready', async () => {
   await bot.bulkEditCommands(
     Object.values(Commands).filter(it=>it.structure).map(it=>it.structure)
   );
   console.log(`Paste the URL below into your browser to invite your bot!\nhttps://discord.com/oauth2/authorize?client_id=${bot.user.id}&scope=applications.commands%20bot&permissions=3072`)
 })
-// Stupid ass interaction creation event
+
 bot.on('interactionCreate', async (interaction) => {
   try{
     if(interaction.type==Constants["InteractionTypes"]["APPLICATION_COMMAND"]){
