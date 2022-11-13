@@ -1,0 +1,31 @@
+{
+  "name": "kirac",
+  "version": "0.0.1",
+  "main": "index.js",
+  "repository": "https://github.com/ttommyth/kirac.git",
+  "author": "ttommyth <ttommyth@gmail.com>",
+  "license": "MIT",
+  "private": false,
+  "scripts": {
+    "build": "tsc",
+    "start": "env-cmd -f .env ts-node ./src/index.ts",
+    "prepare": "husky install"
+  },
+  "dependencies": {
+    "eris": "^0.17.1"
+  },
+  "devDependencies": {
+    "@commitlint/cli": "^17.2.0",
+    "@commitlint/config-conventional": "^17.2.0",
+    "@types/node": "^18.11.9",
+    "@typescript-eslint/eslint-plugin": "^5.42.1",
+    "@typescript-eslint/parser": "^5.42.1",
+    "env-cmd": "^10.1.0",
+    "eslint": "^8.27.0",
+    "eslint-plugin-react": "^7.31.10",
+    "husky": "^8.0.0",
+    "ts-node": "^10.9.1",
+    "tslib": "^2.4.1",
+    "typescript": "^4.8.4"
+  }
+}
