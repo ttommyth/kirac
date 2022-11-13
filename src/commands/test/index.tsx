@@ -9,7 +9,7 @@ import { StructuredCommand } from '@my-types/commands';
 export const testCommand: StructuredCommand = async (interaction)=>{
   console.debug(interaction.data.options)
   const msg = await interaction.createMessage({
-    content: `ping random number: ${Math.random()} db test size: ${await db.test.count()} itemName:${interaction.data?.options?.find(it=>it.name=="itemname")?.value??""}`,
+    content: `ping random number: ${Math.random()} db test size: ${await db.league.count()} itemName:${interaction.data?.options?.find(it=>it.name=="itemname")?.value??""}`,
     components:[
       {
         components: [

@@ -3,7 +3,11 @@
 import { CommandClient, CommandInteraction, ComponentInteraction, Constants, TextableChannel } from 'eris';
 
 import * as Commands from "./commands";
+import { seedDb } from './data/db';
 console.log("program start");
+console.log("seeding db");
+seedDb();
+console.log("seed db completed");
 const bot = new CommandClient(`Bot ${process.env.DISCORD_BOT_TOKEN}`, { intents: ['guilds'], maxShards: 'auto',restMode: true })
 
 bot.on('ready', async () => {

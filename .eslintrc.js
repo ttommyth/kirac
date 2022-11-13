@@ -22,6 +22,7 @@ module.exports = {
   ],
   "rules": {
     "indent": ["error", 2],
+    "@typescript-eslint/no-var-requires": "warn",
     "@typescript-eslint/no-empty-function": "warn",
     "react/no-unknown-property": "warn",
     "no-undef": "off",
