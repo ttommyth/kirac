@@ -20,13 +20,13 @@ bot.on('ready', async () => {
 
 bot.on('interactionCreate', async (interaction) => {
   try{
-    if(interaction.type==InteractionType.ApplicationCommand){
+    if(interaction.isChatInputCommand()){
       const targetCommand = Object.values(Commands).filter(it=>it.structure?.name == (interaction)?.commandName);
       await Promise.all(targetCommand.map(it=>it?.(interaction as any)));
-    }else if(interaction.type==InteractionType.MessageComponent){
+    }else if(interaction.isMessageComponent()){
       const targetCommand = Object.values(Commands).filter(it=>it.structure?.name == (interaction)?.message?.interaction?.commandName);
       await Promise.all(targetCommand.map(it=>it?.onComponentInteraction?.(interaction as any)));
-    }else if(interaction.type==InteractionType.ModalSubmit){
+    }else if(interaction.isModalSubmit()){
       const targetCommand = Object.values(Commands).filter(it=>it.structure?.name == (interaction)?.message?.interaction?.commandName);
       await Promise.all(targetCommand.map(it=>it?.onModalSubmit?.(interaction as any)));
     }
