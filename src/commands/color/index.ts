@@ -1,4 +1,4 @@
-import { ActionRowComponents, ApplicationCommandOptionChoice, ApplicationCommandOptions, ApplicationCommandOptionWithChoices, Constants, InteractionDataOptions } from "eris";
+import { ActionRowBuilder, APIApplicationCommandOptionChoice, ButtonBuilder, ButtonStyle, CommandInteractionOption, SelectMenuBuilder, SlashCommandBuilder, SlashCommandIntegerOption } from "discord.js";
 import { range } from "lodash";
 import { StructuredCommand } from "../../types/commands";
 
@@ -11,21 +11,14 @@ type ChromaticOptions ={
   int:number,
   socket:number,
 }
-const socketComponentSelectProps =(prefix:string)=> ({
-  options:[...new Array(6)].map((_,idx)=>({
+const socketComponentSelectOptions =(prefix:string)=> (
+  [...new Array(6)].map((_,idx)=>({
     label:prefix+(+idx+1),
     value:prefix+(+idx+1)
   }))
-});
-const warpWithActionRow=(model:ActionRowComponents|ActionRowComponents[])=>{
-  return (
-    {
-      type: Constants["ComponentTypes"]["ACTION_ROW"],
-      components:Array.isArray(model)?model:[model]
-    }
-  )
-}
-const toChromaticOptions = (options: InteractionDataOptions[]):ChromaticOptions=>{
+);
+
+const toChromaticOptions = (options: CommandInteractionOption[]):ChromaticOptions=>{
   return ({
     "r":0,
     "g":0,
@@ -40,127 +33,78 @@ const toChromaticOptions = (options: InteractionDataOptions[]):ChromaticOptions=
 }
 
 export const colorCommand: StructuredCommand = async (interaction)=>{
-  console.debug(interaction.data.options)
-  await interaction.acknowledge();
-  const options = toChromaticOptions(interaction.data.options||[]);
-  await interaction.createMessage( {
+  console.debug(interaction.options)
+  const options = toChromaticOptions([...interaction.options.data]);
+  await interaction.reply({
+    content:"ok",
     components: [
-      warpWithActionRow(
-        {
-          type: Constants["ComponentTypes"]["SELECT_MENU"],
-          custom_id:"socket",
-          max_values:1,
-          min_values:1,
-          placeholder: "SOCKET: "+options["socket"],
-          ...socketComponentSelectProps("SOCKET: ")
-        }),
-      warpWithActionRow(
-        {
-          type: Constants["ComponentTypes"]["SELECT_MENU"],
-          custom_id:"r",
-          max_values:1,
-          min_values:1,
-          placeholder: "R: "+options["r"],
-          ...socketComponentSelectProps("R: ")
-        }),
-      warpWithActionRow(
-        {
-          type: Constants["ComponentTypes"]["SELECT_MENU"],
-          custom_id:"g",
-          max_values:1,
-          min_values:1,
-          placeholder: "G: "+options["g"],
-          ...socketComponentSelectProps("G: ")
-        }),
-      warpWithActionRow(
-        {
-          type: Constants["ComponentTypes"]["SELECT_MENU"],
-          custom_id:"b",
-          max_values:1,
-          min_values:1,
-          placeholder: "B: "+options["b"],
-          ...socketComponentSelectProps("B: ")
-        }),
-      warpWithActionRow([
-        {
-          type: Constants["ComponentTypes"]["BUTTON"],
-          custom_id:"str",
-          label:"STR",
-          style:Constants["ButtonStyles"]["DANGER"]
-        },{
-          type: Constants["ComponentTypes"]["BUTTON"],
-          custom_id:"dex",
-          label:"DEX",
-          style:Constants["ButtonStyles"]["SUCCESS"]
-        },{
-          type: Constants["ComponentTypes"]["BUTTON"],
-          custom_id:"int",
-          label:"INT",
-          style:Constants["ButtonStyles"]["PRIMARY"]
-        }]),
-    ],
-    content: "ok"
+      new ActionRowBuilder().addComponents(
+        new SelectMenuBuilder()
+          .setCustomId("socket")
+          .setMinValues(1).setMaxValues(1).setPlaceholder("SOCKET: "+options["socket"])
+          .setOptions(...socketComponentSelectOptions("SOCKET: "))
+      ) as any,
+      new ActionRowBuilder().addComponents(
+        new SelectMenuBuilder()
+          .setCustomId("r")
+          .setMinValues(1).setMaxValues(1).setPlaceholder("R: "+options["r"])
+          .setOptions(...socketComponentSelectOptions("R: "))
+      ) as any,
+      new ActionRowBuilder().addComponents(
+        new SelectMenuBuilder()
+          .setCustomId("g")
+          .setMinValues(1).setMaxValues(1).setPlaceholder("G: "+options["g"])
+          .setOptions(...socketComponentSelectOptions("G: "))
+      ) as any,
+      new ActionRowBuilder().addComponents(
+        new SelectMenuBuilder()
+          .setCustomId("b")
+          .setMinValues(1).setMaxValues(1).setPlaceholder("B: "+options["b"])
+          .setOptions(...socketComponentSelectOptions("B: "))
+      ) as any,
+      new ActionRowBuilder().addComponents(
+        [
+          new ButtonBuilder()
+            .setCustomId("str")
+            .setLabel("STR: "+options["str"])
+            .setStyle(ButtonStyle.Danger),
+          new ButtonBuilder()
+            .setCustomId("dex")
+            .setLabel("DEX: "+options["int"])
+            .setStyle(ButtonStyle.Success),
+          new ButtonBuilder()
+            .setCustomId("int")
+            .setLabel("INT: "+options["int"])
+            .setStyle(ButtonStyle.Primary)
+        ]
+      ) as any,
+    ]
   })
-  //TODO: 
 }
+
 colorCommand.onComponentInteraction=async(interaction)=>{
-  console.debug("interaction", interaction.data)
-  if(interaction.data.custom_id=="str"){
+  console.debug("interaction", interaction.customId)
+  if(interaction.customId=="str"){
     // await interaction.
   }
-  await interaction.acknowledge();
+  await interaction.reply("Pong!");
 }
 
-const socketChoiceProps = {
-  choices:[...new Array(6)].map((_,idx)=>({
-    name:""+(+idx+1),
-    value:(+idx+1)
-  }))
-};
+const socketChoices= (
+  [...new Array(6)].map((_, idx)=>({
+    name:""+idx+1,
+    value:idx+1
+  } as APIApplicationCommandOptionChoice<number>))
+)
 
-colorCommand.structure={
-  name: 'color',
-  description: 'color',
-  type: 1,
-  options:[
-    {
-      type:Constants["ApplicationCommandOptionTypes"]["INTEGER"],
-      name:"str",
-      description:"Item STR requirement",
-    },
-    {
-      type:Constants["ApplicationCommandOptionTypes"]["INTEGER"],
-      name:"dex",
-      description:"Item DEX requirement"
-    },
-    {
-      type:Constants["ApplicationCommandOptionTypes"]["INTEGER"],
-      name:"int",
-      description:"Item INT requirement"
-    },
-    {
-      type:Constants["ApplicationCommandOptionTypes"]["INTEGER"],
-      name:"r",
-      description:"Desired Red Socket",
-      ...socketChoiceProps
-    },
-    {
-      type:Constants["ApplicationCommandOptionTypes"]["INTEGER"],
-      name:"g",
-      description:"Desired Green Socket",
-      ...socketChoiceProps
-    },
-    {
-      type:Constants["ApplicationCommandOptionTypes"]["INTEGER"],
-      name:"b",
-      description:"Desired Blue Socket",
-      ...socketChoiceProps
-    },
-    {
-      type:Constants["ApplicationCommandOptionTypes"]["INTEGER"],
-      name:"socket",
-      description:"Total Sockets of item",
-      ...socketChoiceProps
-    }
-  ] as ApplicationCommandOptions[]
-}
+colorCommand.structure = new SlashCommandBuilder()
+  .setName("color")
+  .setDescription("color")
+  .addIntegerOption((opt)=>(opt.setName("str").setDescription("Item STR requirement")))
+  .addIntegerOption((opt)=>(opt.setName("dex").setDescription("Item DEX requirement")))
+  .addIntegerOption((opt)=>(opt.setName("int").setDescription("Item INT requirement")))
+  .addIntegerOption((opt)=>(opt.setName("r").setDescription("Desired Red Socket").addChoices(...socketChoices)))
+  .addIntegerOption((opt)=>(opt.setName("g").setDescription("Desired Green Socket").addChoices(...socketChoices)))
+  .addIntegerOption((opt)=>(opt.setName("b").setDescription("Desired Blue Socket").addChoices(...socketChoices)))
+  .addIntegerOption((opt)=>(opt.setName("socket").setDescription("Item Sockets").addChoices(...socketChoices)))
+  .toJSON()
