@@ -1,4 +1,4 @@
-import { ActionRowBuilder, APIApplicationCommandOptionChoice, ButtonBuilder, ButtonStyle, CommandInteractionOption, SelectMenuBuilder, SlashCommandBuilder, SlashCommandIntegerOption } from "discord.js";
+import { ActionRowBuilder, APIApplicationCommandOptionChoice, ButtonBuilder, ButtonStyle, CommandInteractionOption, ModalActionRowComponentBuilder, ModalBuilder, SelectMenuBuilder, SlashCommandBuilder, SlashCommandIntegerOption, TextInputBuilder, TextInputStyle } from "discord.js";
 import { range } from "lodash";
 import { StructuredCommand } from "../../types/commands";
 
@@ -38,31 +38,31 @@ export const colorCommand: StructuredCommand = async (interaction)=>{
   await interaction.reply({
     content:"ok",
     components: [
-      new ActionRowBuilder().addComponents(
+      new ActionRowBuilder<SelectMenuBuilder>().addComponents(
         new SelectMenuBuilder()
           .setCustomId("socket")
           .setMinValues(1).setMaxValues(1).setPlaceholder("SOCKET: "+options["socket"])
           .setOptions(...socketComponentSelectOptions("SOCKET: "))
-      ) as any,
-      new ActionRowBuilder().addComponents(
+      ),
+      new ActionRowBuilder<SelectMenuBuilder>().addComponents(
         new SelectMenuBuilder()
           .setCustomId("r")
           .setMinValues(1).setMaxValues(1).setPlaceholder("R: "+options["r"])
           .setOptions(...socketComponentSelectOptions("R: "))
-      ) as any,
-      new ActionRowBuilder().addComponents(
+      ),
+      new ActionRowBuilder<SelectMenuBuilder>().addComponents(
         new SelectMenuBuilder()
           .setCustomId("g")
           .setMinValues(1).setMaxValues(1).setPlaceholder("G: "+options["g"])
           .setOptions(...socketComponentSelectOptions("G: "))
-      ) as any,
-      new ActionRowBuilder().addComponents(
+      ),
+      new ActionRowBuilder<SelectMenuBuilder>().addComponents(
         new SelectMenuBuilder()
           .setCustomId("b")
           .setMinValues(1).setMaxValues(1).setPlaceholder("B: "+options["b"])
           .setOptions(...socketComponentSelectOptions("B: "))
-      ) as any,
-      new ActionRowBuilder().addComponents(
+      ),
+      new ActionRowBuilder<ButtonBuilder>().addComponents(
         [
           new ButtonBuilder()
             .setCustomId("str")
@@ -77,17 +77,46 @@ export const colorCommand: StructuredCommand = async (interaction)=>{
             .setLabel("INT: "+options["int"])
             .setStyle(ButtonStyle.Primary)
         ]
-      ) as any,
+      ),
     ]
   })
 }
 
 colorCommand.onComponentInteraction=async(interaction)=>{
   console.debug("interaction", interaction.customId)
-  if(interaction.customId=="str"){
+  if(["str","dex","int"].indexOf(interaction.customId)>=0){
     // await interaction.
+    await interaction.showModal(new ModalBuilder()
+      .setCustomId('myModal')
+      .setTitle('My Modal').addComponents(
+        new ActionRowBuilder<ModalActionRowComponentBuilder>().addComponents(
+        
+          new TextInputBuilder()
+            .setCustomId("str")
+            .setLabel("STR")
+            .setStyle(TextInputStyle.Short)
+        
+        ),    new ActionRowBuilder<ModalActionRowComponentBuilder>().addComponents(
+        
+          new TextInputBuilder()
+            .setCustomId("dex")
+            .setLabel("DEX")
+            .setStyle(TextInputStyle.Short)
+        
+        ),    new ActionRowBuilder<ModalActionRowComponentBuilder>().addComponents(
+        
+          new TextInputBuilder()
+            .setCustomId("int")
+            .setLabel("INT")
+            .setStyle(TextInputStyle.Short)
+        
+        )
+      ))
   }
   await interaction.reply("Pong!");
+}
+colorCommand.onModalSubmit = async(interaction)=>{
+
 }
 
 const socketChoices= (

@@ -1,8 +1,9 @@
-import { AutocompleteInteraction, CollectedInteraction, Interaction, RESTPostAPIChatInputApplicationCommandsJSONBody } from "discord.js"
+import { AutocompleteInteraction, CollectedInteraction, Interaction, ModalSubmitInteraction, RESTPostAPIChatInputApplicationCommandsJSONBody } from "discord.js"
 // import { AnyInteraction, ApplicationCommandStructure, CommandInteraction, ComponentInteraction } from "eris"
 
 export type StructuredCommand = {
   (interaction: Exclude<Interaction, CollectedInteraction | AutocompleteInteraction>):unknown
-  onComponentInteraction?: (interaction: CollectedInteraction )=>unknown
+  onComponentInteraction?: (interaction: Exclude<CollectedInteraction, ModalSubmitInteraction> )=>unknown
+  onModalSubmit?: (interaction: ModalSubmitInteraction )=>unknown
   structure: RESTPostAPIChatInputApplicationCommandsJSONBody
 }

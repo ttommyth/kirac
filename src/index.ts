@@ -23,9 +23,12 @@ bot.on('interactionCreate', async (interaction) => {
     if(interaction.type==InteractionType.ApplicationCommand){
       const targetCommand = Object.values(Commands).filter(it=>it.structure?.name == (interaction)?.commandName);
       await Promise.all(targetCommand.map(it=>it?.(interaction as any)));
-    }else if(interaction.type==InteractionType.MessageComponent || interaction.type==InteractionType.ModalSubmit){
+    }else if(interaction.type==InteractionType.MessageComponent){
       const targetCommand = Object.values(Commands).filter(it=>it.structure?.name == (interaction)?.message?.interaction?.commandName);
       await Promise.all(targetCommand.map(it=>it?.onComponentInteraction?.(interaction as any)));
+    }else if(interaction.type==InteractionType.ModalSubmit){
+      const targetCommand = Object.values(Commands).filter(it=>it.structure?.name == (interaction)?.message?.interaction?.commandName);
+      await Promise.all(targetCommand.map(it=>it?.onModalSubmit?.(interaction as any)));
     }
   }catch(err){
     console.error(err)
