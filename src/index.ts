@@ -15,7 +15,7 @@ bot.on('ready', async () => {
   await bot.rest.put(Routes.applicationCommands(bot.application!.id), { body: Object.values(Commands).filter(it=>it.structure).map(it=>it.structure) });
 
   console.log(`Following command structure are submitted: ${Object.values(Commands).filter(it=>it.structure).map(it=>it.structure.name).join(", ")}`)
-  console.log(`Paste the URL below into your browser to invite your bot!\nhttps://discord.com/oauth2/authorize?client_id=${bot.user.id}&scope=applications.commands%20bot&permissions=3072`)
+  console.log(`Paste the URL below into your browser to invite your bot!\nhttps://discord.com/oauth2/authorize?client_id=${bot?.user?.id}&scope=applications.commands%20bot&permissions=3072`)
 })
 
 bot.on('interactionCreate', async (interaction) => {
