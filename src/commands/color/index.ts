@@ -1,8 +1,7 @@
 import { ActionRow, ActionRowBuilder, APIApplicationCommandOptionChoice, APIEmbedField, ButtonBuilder, ButtonStyle, CommandInteractionOption, ComponentType, EmbedBuilder, MessageActionRowComponent, ModalActionRowComponentBuilder, ModalBuilder, SelectMenuBuilder, SlashCommandBuilder, SlashCommandIntegerOption, TextInputBuilder, TextInputStyle } from "discord.js";
-import { last, minBy, range } from "lodash";
+import { last, minBy } from "lodash";
 import { StructuredCommand } from "../../types/commands";
 import { ChromaticOptions, ChromaticResult, prebuiltEngine } from '@src/services/chromatic/engine';
-import { AnyMxRecord } from "dns";
 import { genTableImage } from "@src/services/chromatic/tableImage";
 
 const socketComponentSelectOptions =(prefix:string)=> (
@@ -97,10 +96,9 @@ const socketChoices= (
 )
 
 const fillResultToEmbed=(result:ChromaticResult[], builder:EmbedBuilder): EmbedBuilder=>{
-  let b = builder;
   const bestCost = minBy(result , it=>it.avgCost=="-"?999999:it.avgCost);
   const bestTry = minBy(result , it=>it.avgTries);
-  return b.addFields(
+  return builder.addFields(
     [
       { name: "Best Cost",  value:bestCost?.recipeName ??"-"},
       { name: "Avg Cost",  value:bestCost?.avgCost??"-" },
@@ -110,46 +108,6 @@ const fillResultToEmbed=(result:ChromaticResult[], builder:EmbedBuilder): EmbedB
       { name: "Avg Tries",  value:bestTry?.avgTries??"-" },
     ].map((it:APIEmbedField)=>(it.inline=true, it))
   );
-  console.debug(result)
-  const first = result.splice(0,1)[0];
-  const pair = result.reduce((cur, it)=>{
-    const latest = last(cur);
-    if((latest?.length??0)>=2){
-      cur.push([it])
-    }else if (latest){
-      cur[cur.length-1][1] = it;
-    }
-    return cur;
-  }, [[]] as [ChromaticResult[]]);
-  b=b.addFields([
-    { name: "Recipe Name",  value:first.recipeName },
-    { name: "Chance",  value:first.chance },
-    { name: "Avg Tries",  value:first.avgTries },
-    { name: "Recipe Cost",  value:first.recipeCost },
-    { name: "Average Cost",  value:first.avgCost },
-    { name: "StdDev",  value:first.stdDev },
-  ].map((it:APIEmbedField)=>(it.inline=true, it))
-    .map(it=>{
-      return it;
-    })
-  )
-  // pair.forEach(it=>{
-  //   b=b.addFields([
-  //     { name: it[0]?.recipeName,  value:it[1]?.recipeName ??"-"},
-  //     { name: it[0]?.chance,  value:it[1]?.chance??"-" },
-  //     { name: it[0]?.avgTries,  value:it[1]?.avgTries??"-" },
-  //     { name: it[0]?.recipeCost,  value:it[1]?.recipeCost??"-" },
-  //     { name: it[0]?.avgCost,  value:it[1]?.avgCost??"-" },
-  //     { name: it[0]?.stdDev,  value:it[1]?.stdDev??"-" },
-  //   ].map((it:APIEmbedField)=>(it.inline=true, it))
-  //     .map(it=>{
-  //       it.name = it.name??"-"
-  //       it.value = it.value??"-"
-  //       return it
-  //     })
-  //   )
-  // });
-  return b;
 }
 
 export const colorCommand: StructuredCommand = async (interaction)=>{
