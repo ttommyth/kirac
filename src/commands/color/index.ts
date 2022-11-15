@@ -48,40 +48,40 @@ const createCommandComponents = (options: ChromaticOptions)=>{
     new ActionRowBuilder<SelectMenuBuilder>().addComponents(
       new SelectMenuBuilder()
         .setCustomId("socket")
-        .setMinValues(1).setMaxValues(1).setPlaceholder("SOCKET: "+options["socket"])
-        .setOptions(...socketComponentSelectOptions("SOCKET: "))
+        .setMinValues(1).setMaxValues(1).setPlaceholder("⭕SOCKET: "+options["socket"])
+        .setOptions(...socketComponentSelectOptions("⭕SOCKET: "))
     ),
     new ActionRowBuilder<SelectMenuBuilder>().addComponents(
       new SelectMenuBuilder()
         .setCustomId("r")
-        .setMinValues(1).setMaxValues(1).setPlaceholder("R: "+options["r"])
-        .setOptions(...socketComponentSelectOptions("R: "))
+        .setMinValues(1).setMaxValues(1).setPlaceholder("🔴R: "+options["r"])
+        .setOptions(...socketComponentSelectOptions("🔴R: "))
     ),
     new ActionRowBuilder<SelectMenuBuilder>().addComponents(
       new SelectMenuBuilder()
         .setCustomId("g")
-        .setMinValues(1).setMaxValues(1).setPlaceholder("G: "+options["g"])
-        .setOptions(...socketComponentSelectOptions("G: "))
+        .setMinValues(1).setMaxValues(1).setPlaceholder("🟢G: "+options["g"])
+        .setOptions(...socketComponentSelectOptions("🟢G: "))
     ),
     new ActionRowBuilder<SelectMenuBuilder>().addComponents(
       new SelectMenuBuilder()
         .setCustomId("b")
-        .setMinValues(1).setMaxValues(1).setPlaceholder("B: "+options["b"])
-        .setOptions(...socketComponentSelectOptions("B: "))
+        .setMinValues(1).setMaxValues(1).setPlaceholder("🔵B: "+options["b"])
+        .setOptions(...socketComponentSelectOptions("🔵B: "))
     ),
     new ActionRowBuilder<ButtonBuilder>().addComponents(
       [
         new ButtonBuilder()
           .setCustomId("str")
-          .setLabel("STR: "+options["str"])
+          .setLabel("💪STR: "+options["str"])
           .setStyle(ButtonStyle.Danger),
         new ButtonBuilder()
           .setCustomId("dex")
-          .setLabel("DEX: "+options["dex"])
+          .setLabel("🦵DEX: "+options["dex"])
           .setStyle(ButtonStyle.Success),
         new ButtonBuilder()
           .setCustomId("int")
-          .setLabel("INT: "+options["int"])
+          .setLabel("🧠INT: "+options["int"])
           .setStyle(ButtonStyle.Primary)
       ]
     )
@@ -96,8 +96,8 @@ const socketChoices= (
 )
 
 const fillResultToEmbed=(result:ChromaticResult[], builder:EmbedBuilder): EmbedBuilder=>{
-  const bestCost = minBy(result , it=>it.avgCost=="-"?999999:(+it.avgCost));
-  const bestTry = minBy(result , it=>(+it.avgTries));
+  const bestCost = minBy(result , it=>((+it.avgCost.replace(",",""))<1)?999999:+it.avgCost.replace(",",""));
+  const bestTry = minBy(result , it=>(+it.avgTries.replace(",","")));
   return builder.addFields(
     [
       { name: "Best Cost",  value:bestCost?.recipeName ??"-"},
@@ -217,5 +217,5 @@ colorCommand.structure = new SlashCommandBuilder()
   .addIntegerOption((opt)=>(opt.setName("r").setDescription("Desired Red Socket").addChoices(...socketChoices)))
   .addIntegerOption((opt)=>(opt.setName("g").setDescription("Desired Green Socket").addChoices(...socketChoices)))
   .addIntegerOption((opt)=>(opt.setName("b").setDescription("Desired Blue Socket").addChoices(...socketChoices)))
-  .addIntegerOption((opt)=>(opt.setName("socket").setDescription("Item Sockets").addChoices(...socketChoices)))
+  .addIntegerOption((opt)=>(opt.setName("s").setDescription("Item Sockets").addChoices(...socketChoices)))
   .toJSON()
