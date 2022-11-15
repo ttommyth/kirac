@@ -19,6 +19,7 @@ bot.on('ready', async () => {
 })
 
 bot.on('interactionCreate', async (interaction) => {
+  console.time("profiling interaction "+interaction.id);
   try{
     if(interaction.isChatInputCommand()){
       const targetCommand = Object.values(Commands).filter(it=>it.structure?.name == (interaction)?.commandName);
@@ -33,6 +34,8 @@ bot.on('interactionCreate', async (interaction) => {
   }catch(err){
     console.error(err)
   }
+  console.timeLog("profiling interaction "+interaction.id);
+  
 })
 
 bot.login(process.env.DISCORD_BOT_TOKEN).catch(err=>console.error("error occurred"));
