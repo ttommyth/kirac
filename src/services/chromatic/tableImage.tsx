@@ -6,8 +6,8 @@ import { ChromaticResult } from './engine';
 import { min, minBy } from 'lodash';
 
 export const genTableImage=async (result: ChromaticResult[]): Promise<Buffer>=>{
-  const bestCost = minBy(result , it=>it.avgCost=="-"?999999:it.avgCost);
-  const bestTry = minBy(result , it=>it.avgTries);
+  const bestCost = minBy(result , it=>it.avgCost=="-"?999999:(+it.avgCost));
+  const bestTry = minBy(result , it=>(+it.avgTries));
   return Buffer.from(new Resvg(await satori(
     <div tw="bg-[#202225] text-[#a3a69d] flex flex-col w-full h-full rounded-md p-4">
       <div tw="flex flex-row border-b-2 border-b-white font-bold text-white">

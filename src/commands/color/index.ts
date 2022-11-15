@@ -96,8 +96,8 @@ const socketChoices= (
 )
 
 const fillResultToEmbed=(result:ChromaticResult[], builder:EmbedBuilder): EmbedBuilder=>{
-  const bestCost = minBy(result , it=>it.avgCost=="-"?999999:it.avgCost);
-  const bestTry = minBy(result , it=>it.avgTries);
+  const bestCost = minBy(result , it=>it.avgCost=="-"?999999:(+it.avgCost));
+  const bestTry = minBy(result , it=>(+it.avgTries));
   return builder.addFields(
     [
       { name: "Best Cost",  value:bestCost?.recipeName ??"-"},
