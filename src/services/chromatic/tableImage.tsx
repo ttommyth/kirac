@@ -4,6 +4,7 @@ import fs from 'fs';
 import { Resvg } from '@resvg/resvg-js';
 import { ChromaticResult } from './engine';
 import { min, minBy } from 'lodash';
+const font = fs.readFileSync("./assets/fonts/NotoSansTC-Regular.otf");
 
 export const genTableImage=async (result: ChromaticResult[]): Promise<Buffer>=>{
   const bestCost = minBy(result , it=>((+it.avgCost.replace(",",""))<1)?999999:+it.avgCost.replace(",",""));
@@ -35,7 +36,7 @@ export const genTableImage=async (result: ChromaticResult[]): Promise<Buffer>=>{
         {
           name: 'Roboto',
           // Use `fs` (Node.js only) or `fetch` to read the font as Buffer/ArrayBuffer and provide `data` here.
-          data: fs.readFileSync("./fonts/NotoSansTC-Regular.otf"),
+          data: font,
           weight: 400,
           style: 'normal',
         },
