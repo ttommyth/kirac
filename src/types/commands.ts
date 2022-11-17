@@ -5,5 +5,6 @@ export type StructuredCommand = {
   (interaction: Exclude<Interaction, CollectedInteraction | AutocompleteInteraction>):unknown
   onComponentInteraction?: (interaction: Exclude<CollectedInteraction, ModalSubmitInteraction> )=>unknown
   onModalSubmit?: (interaction: ModalSubmitInteraction )=>unknown
+  onAutoComplete?: (interaction: AutocompleteInteraction)=>unknown
   structure: RESTPostAPIChatInputApplicationCommandsJSONBody
 }

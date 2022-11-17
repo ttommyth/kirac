@@ -30,6 +30,9 @@ bot.on('interactionCreate', async (interaction) => {
     }else if(interaction.isModalSubmit()){
       const targetCommand = Object.values(Commands).filter(it=>it.structure?.name == (interaction)?.message?.interaction?.commandName);
       await Promise.all(targetCommand.map(it=>it?.onModalSubmit?.(interaction as any)));
+    }else if(interaction.isAutocomplete()){
+      const targetCommand = Object.values(Commands).filter(it=>it.structure?.name == (interaction)?.commandName);
+      await Promise.all(targetCommand.map(it=>it?.onAutoComplete?.(interaction as any)));
     }
   }catch(err){
     console.error(err)
