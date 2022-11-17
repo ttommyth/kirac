@@ -115,9 +115,9 @@ export const colorCommand: StructuredCommand = async (interaction)=>{
   const options = toChromaticOptions([...interaction.options.data]);
   const result = prebuiltEngine.calculate(options);
   await interaction.reply({
-    embeds:[
-      fillResultToEmbed(result[0], new EmbedBuilder())      
-    ],
+    // embeds:[
+    //   fillResultToEmbed(result[0], new EmbedBuilder())      
+    // ],
     files:[
       {
         name: "test.png",
@@ -169,9 +169,9 @@ colorCommand.onComponentInteraction=async(interaction)=>{
     await interaction.deferUpdate();
     const result = prebuiltEngine.calculate(options);
     await interaction.message?.edit({
-      embeds:[
-        fillResultToEmbed(result[0], new EmbedBuilder())      
-      ],
+      // embeds:[
+      //   fillResultToEmbed(result[0], new EmbedBuilder())      
+      // ],
       files:[
         {
           name: "test.png",
@@ -192,9 +192,9 @@ colorCommand.onModalSubmit = async(interaction)=>{
     await interaction.deferUpdate();
     const result = prebuiltEngine.calculate(options);
     await interaction.message?.edit({
-      embeds:[
-        fillResultToEmbed(result[0], new EmbedBuilder())      
-      ],
+      // embeds:[
+      //   fillResultToEmbed(result[0], new EmbedBuilder())      
+      // ],
       files:[
         {
           name: "test.png",
