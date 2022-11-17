@@ -82,7 +82,11 @@ const createCommandComponents = (options: ChromaticOptions)=>{
         new ButtonBuilder()
           .setCustomId("int")
           .setLabel("🧠INT: "+options["int"])
-          .setStyle(ButtonStyle.Primary)
+          .setStyle(ButtonStyle.Primary),
+        new ButtonBuilder()
+          .setURL("https://siveran.github.io/calc.html")
+          .setLabel("🔗WEB")
+          .setStyle(ButtonStyle.Link)
       ]
     )
   ]
