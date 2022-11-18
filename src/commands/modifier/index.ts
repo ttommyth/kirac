@@ -56,9 +56,11 @@ const processModifierTilMatch=(statHash: string, options?: {modLocation?: Search
 
 export const modifierCommand: StructuredCommand = async (interaction)=>{
   const statId = interaction.options.data.find(it=>it.name==="mod_stat")?.value?.toString();
+  console.debug(statId?.trim())
   if(statId){
     //process with stat id lookup
-    if(md5RegexExp.test(statId?.trim())){
+    const isMd5=md5RegexExp.test(statId?.trim());
+    if(isMd5){
       //is md5
       console.debug("stat: ", statId);
       const itemType = interaction.options.data.find(it=>it.name=="item_type")?.value?.toString();
@@ -71,7 +73,7 @@ export const modifierCommand: StructuredCommand = async (interaction)=>{
       await interaction.reply(response);
     }else{
       //is string
-      await interaction.reply("-"+ statId)
+      await interaction.reply(" - "+ statId+" - "+isMd5);
     }
 
   }else{

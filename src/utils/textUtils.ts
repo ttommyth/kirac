@@ -1,1 +1,1 @@
-export const md5RegexExp = /^[a-f0-9]{32}$/gi;
+export const md5RegexExp =/^[a-f0-9]{32}$/i;
