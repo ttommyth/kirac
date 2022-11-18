@@ -10,12 +10,6 @@ export type StatCondition={
   min?:number,
   max?:number
 }
-export type StatTranslationDetailPerId={
-  "condition": StatCondition,
-  "format": string, 
-  "index_handlers": string[],
-  "string": string
-}
 export type StatTranslationDetail={
   "condition": StatCondition[],
   "format": string[], //["#"],
@@ -54,6 +48,8 @@ export type TagSearcher={
  notContainTags:string[],
  typeFilter?:(type:string)=>boolean
 }
+
+export type SearchModLocation= "affix"|"prefix"|"suffix"|"other"
 
 export const itemTypePrefix = [
   "str_dex_int",
@@ -186,22 +182,28 @@ export const JewelTypeMapToTagSearcher:{[key:string]:TagSearcher}={
   },
 }
 
+const enrichStatString = (id: string[], detail: StatTranslationDetail)=>{
+  return id.some(it=>it.startsWith("local_"))? detail.string+" (local)": detail.string
+}
+
 // {[key: MD5(mod.key)]: Mods}
 export const availableModsHashMap:{[key:string]:Mods} = Object.fromEntries(Object.entries(mods)
-  .filter(it=>it[1].generation_type.endsWith("fix") ||it[1].implicit_tags.length>0 || it[1].generation_type.endsWith("implicit") || it[1].type.endsWith("ForJewel")  )
+  .filter(it=>it[1].generation_type.endsWith("fix") || it[1].generation_type.endsWith("implicit") || it[1].type.endsWith("ForJewel")  )
+  .filter(it=>!["monster", "heist_npc"].some(ban=>it[1].domain===ban))
   .map(it=>[MD5(it[0]), it[1]]));
 
 
 const invokedStatIds = Object.fromEntries(Object.values(availableModsHashMap).flatMap(it=>it.stats).map(it=>[it.id,true]));
 // {[key: MD5(stat.id)]: StatTranslationDetailPerId[]}
-export const invokedStatHashMap:{[key:string]:StatTranslationDetailPerId[]} = Object.fromEntries(
+export const invokedStatHashMap:{[key:string]:(StatTranslationDetail& {enrichedString:string})[]} = Object.fromEntries(
   (stat_translations as StatTranslation[]).filter(it=>it.ids.find(id=>invokedStatIds[id]))
-    .flatMap(it=>it.ids.map((id,idx)=>[MD5(id), it.English.map(it=>({
+    .map(stat=>[MD5(stat.ids[0]), stat.English.map(it=>({
       string: it.string,
-      index_handlers: it.index_handlers[idx],
-      format: it.format[idx],
-      condition: it.condition[idx],
-    } as StatTranslationDetailPerId))]))
+      enrichedString: enrichStatString(stat.ids, it),
+      index_handlers: it.index_handlers,
+      format: it.format,
+      condition: it.condition,
+    } as StatTranslationDetail & {enrichedString:string}))])
 );
 // {[key: MD5(stat.id)]: mod.key[]}
 export const statToModHashMap = Object.entries(availableModsHashMap).flatMap(it=>{
@@ -243,16 +245,52 @@ delete itemTags[0] //remove the tags not used in filtered mod list
 
 export const availableItemType=Object.keys(itemTags).map((it,idx)=>({id: idx,label:it}));
 
+export const findModsWithStat = 
+(statHash: string, options?: {modLocation?: SearchModLocation, itemType?: string, itemAttribute?: string, itemInfluence?: string} )
+: {[key:string]: Mods[]}=>{
+  let mod = statToModHashMap[statHash].map(it=>availableModsHashMap[it]).filter(it=>!!it);
+  if(!mod)
+    throw new Error("mod not found with statHash "+statHash);
+  if(options){
+    if(options.itemAttribute){
+      mod = mod.filter(it=>it.spawn_weights.some(spawn=>spawn.tag.startsWith(options.itemAttribute!)))
+    }
+    if(options.itemType){
+      mod = mod.filter(it=>it.spawn_weights.some(spawn=>spawn.tag.includes(options.itemType!)))
+    }
+    if(options.itemInfluence){
+      mod = mod.filter(it=>it.spawn_weights.some(spawn=>spawn.tag.endsWith(options.itemInfluence!)))
+    }
+    if(options.modLocation){
+      switch (options.modLocation) {
+      case "affix":
+        mod = mod.filter(it=>it.generation_type==="prefix" || it.generation_type=="suffix")
+        break;
+      case "prefix":
+      case "suffix":
+        mod = mod.filter(it=>it.generation_type===options.modLocation)
+        break;
+      case "other":
+        mod = mod.filter(it=>!["prefix","suffix"].some(gt =>it.generation_type==gt))
+        break;
+      
+      }
+    }
+  }
+  return groupBy(mod,it=>it.type);
+}
 
-export const statMiniSearch = new MiniSearch({fields:["string","indexField"],storeFields:["string", "id"] })
+
+export const statMiniSearch = new MiniSearch({fields:["enrichedString","indexField"],storeFields:["enrichedString", "id"] })
 statMiniSearch.addAll(Object.entries(invokedStatHashMap)
   .flatMap(p=>p[1]
     .map(c=>({
       string: c.string,
+      enrichedString: c.enrichedString,
       id:p[0],
-      indexField: statToModHashMap[p[0]]?.map(modId=>[availableModsHashMap[modId].type,availableModsHashMap[modId].spawn_weights.filter(it=>it.weight>0).map(it=>it.tag).join(',')])
+      indexField: statToModHashMap[p[0]]
+        ?.map(modId=>[availableModsHashMap[modId].type,availableModsHashMap[modId].spawn_weights.filter(it=>it.weight>0).map(it=>it.tag).join(',')])
     }))))
-
 
 export const itemTypeMiniSearch = new MiniSearch({fields:["label"],storeFields:["label"] })
 itemTypeMiniSearch.addAll(availableItemType);

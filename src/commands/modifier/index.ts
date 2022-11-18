@@ -3,23 +3,91 @@ import { filter, last, minBy, remove } from "lodash";
 import { StructuredCommand } from "../../types/commands";
 import { ChromaticOptions, ChromaticResult, prebuiltEngine } from '@src/services/chromatic/engine';
 import { genTableImage } from "@src/services/chromatic/tableImage";
-import { availableItemType, availableModsHashMap, itemTags, itemTypeMiniSearch, itemTypePrefix, itemTypeSuffix, statMiniSearch, statToModHashMap } from "@src/services/modifier";
+import { availableItemType, availableModsHashMap, findModsWithStat, itemTags, itemTypeMiniSearch, itemTypePrefix, itemTypeSuffix, SearchModLocation, statMiniSearch, statToModHashMap } from "@src/services/modifier";
+import { md5RegexExp } from "@src/utils/textUtils";
+import { enc } from "crypto-js";
+
+const processModifierTilMatch=(statHash: string, options?: {modLocation?: SearchModLocation, itemType?: string, itemAttribute?: string, itemInfluence?: string}, followUpOptions?:{
+  modType:string
+})=>{
+
+  const found = findModsWithStat(statHash,options);
+  const filteredFound = followUpOptions?.modType?Object.fromEntries(Object.entries(found).filter(it=>it[0]===followUpOptions?.modType)):found;
+  console.debug(found);
+  if(Object.keys(found).length>1 && Object.keys(filteredFound).length!=1){
+    return ({
+      content:`found ${Object.keys(found).length} matches, please select ${""} to continue`,
+      embeds:[
+        new EmbedBuilder().setAuthor({
+          name: "stathash: "+statHash,          
+        }).setFooter({  
+          text:"query: "+enc.Base64.stringify(enc.Utf8.parse(JSON.stringify(options)))
+        })
+      ],
+      components:[
+        new ActionRowBuilder<SelectMenuBuilder>().addComponents(
+          new SelectMenuBuilder()
+            .setCustomId("mod_type")
+            .setMinValues(1).setMaxValues(1).setPlaceholder(followUpOptions?.modType??"Select the most suitable type")
+            .setOptions(...Object.keys(found).map(it=>({label:it, value:it})))
+        )]
+    })
+  }else{
+    return ({
+      content:`${Object.values(filteredFound)[0].map(it=>it.required_level).join(",")}`,
+      embeds:[
+        new EmbedBuilder().setAuthor({
+          name: "stathash: "+statHash,          
+        }).setFooter({  
+          text:"query: "+enc.Base64.stringify(enc.Utf8.parse(JSON.stringify(options)))
+        })
+      ],
+      components:[
+        new ActionRowBuilder<SelectMenuBuilder>().addComponents(
+          new SelectMenuBuilder()
+            .setCustomId("mod_type")
+            .setMinValues(1).setMaxValues(1).setPlaceholder(followUpOptions?.modType??"Select the most suitable type")
+            .setOptions(...Object.keys(found).map(it=>({label:it, value:it})))
+        )]
+    })
+  }
+}
 
 
 export const modifierCommand: StructuredCommand = async (interaction)=>{
   const statId = interaction.options.data.find(it=>it.name==="mod_stat")?.value?.toString();
   if(statId){
     //process with stat id lookup
+    if(md5RegexExp.test(statId?.trim())){
+      //is md5
+      console.debug("stat: ", statId);
+      const itemType = interaction.options.data.find(it=>it.name=="item_type")?.value?.toString();
+      const itemAttribute= interaction.options.data.find(it=>it.name=="item_attribute")?.value?.toString();
+      const itemInfluence= interaction.options.data.find(it=>it.name=="item_influence")?.value?.toString();
+      const modLocation= interaction.options.data.find(it=>it.name=="mod_loc")?.value?.toString() as SearchModLocation;
+      const options= {itemType, itemAttribute, itemInfluence, modLocation: modLocation??"affix"};
+   
+      const response = processModifierTilMatch(statId, options);
+      await interaction.reply(response);
+    }else{
+      //is string
+      await interaction.reply("-"+ statId)
+    }
 
-    await interaction.reply(JSON.stringify(statToModHashMap[statId]))
   }else{
 
     await interaction.reply("-")
   }
 }
-
 modifierCommand.onComponentInteraction=async(interaction)=>{
-  console.debug("interaction", interaction.customId)
+  if(interaction.customId==="mod_type" && interaction.componentType == ComponentType.StringSelect){
+    await interaction.deferUpdate();
+    const mod_type = interaction.values[0]
+    const options= JSON.parse(enc.Base64.parse(interaction.message.embeds[0]?.footer?.text?.split(":")?.[1]?.trim()??"").toString(enc.Utf8))
+    const statId= interaction.message.embeds[0]?.author?.name?.split(":")?.[1]?.trim() ?? "";
+    const response = processModifierTilMatch(statId, options, {modType: mod_type});
+    await interaction.message?.edit(response);
+  }
 }
 modifierCommand.onModalSubmit = async(interaction)=>{
   console.log("modal submit", interaction);
@@ -52,7 +120,7 @@ modifierCommand.onAutoComplete= async(interaction)=>{
         const searchResult =statMiniSearch.search(
           {
             combineWith: 'AND',
-            fields:["string"],
+            fields:["enrichedString"],
             fuzzy:0.2,
             prefix:true,
             queries:[
@@ -77,10 +145,9 @@ modifierCommand.onAutoComplete= async(interaction)=>{
             // }]:[]),
             ] 
           }
-        ).slice(0,25).map(it=>({name:it.string, value:it.id}));
-        console.debug(searchResult)
+        ).slice(0,25).map(it=>({name:it.enrichedString, value:it.id}));
         await interaction.respond(
-          searchResult?.map(it=>(it.name=it.name.substring(0,100),it.value=it.value.substring(0,100), it))??[]
+          searchResult?.map(it=>(it.name=it.name.substring(0,100), it))??[]
         )
       }
     }
@@ -101,11 +168,13 @@ modifierCommand.structure = new SlashCommandBuilder()
   ))
   ))
   .addStringOption((opt)=>(opt.setName("mod_loc").setDescription("Mod Location")).setChoices(...[
+    {name:"prefix/suffix", value:"affix"},
     {name:"prefix", value:"prefix"},
     {name:"suffix", value:"suffix"},
     // {name:"implicit", value:"implicit"},
     // {name:"synthesis", value:"synthesis"},
-    {name:"corrupted", value:"corrupted"},
+    // {name:"corrupted", value:"corrupted"},
+    {name:"other", value:"other"}
   ]))
   .addStringOption((opt)=>(opt.setName("mod_stat").setDescription("Mod Stat (e.g. Adds (56–87) to (105–160) Chaos Damage)")).setAutocomplete(true))
   .toJSON()
