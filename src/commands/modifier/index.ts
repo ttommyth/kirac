@@ -3,7 +3,7 @@ import { filter, last, minBy, remove } from "lodash";
 import { StructuredCommand } from "../../types/commands";
 import { ChromaticOptions, ChromaticResult, prebuiltEngine } from '@src/services/chromatic/engine';
 import { genTableImage } from "@src/services/chromatic/tableImage";
-import { availableItemType, availableMods, itemTags, itemTypeMiniSearch, itemTypePrefix, itemTypeSuffix, statMiniSearch, statToMod } from "@src/services/modifier";
+import { availableItemType, availableModsHashMap, itemTags, itemTypeMiniSearch, itemTypePrefix, itemTypeSuffix, statMiniSearch, statToModHashMap } from "@src/services/modifier";
 
 
 export const modifierCommand: StructuredCommand = async (interaction)=>{
@@ -11,7 +11,7 @@ export const modifierCommand: StructuredCommand = async (interaction)=>{
   if(statId){
     //process with stat id lookup
 
-    await interaction.reply(JSON.stringify(statToMod[statId]))
+    await interaction.reply(JSON.stringify(statToModHashMap[statId]))
   }else{
 
     await interaction.reply("-")
@@ -44,44 +44,43 @@ modifierCommand.onAutoComplete= async(interaction)=>{
     break;
   case "mod_stat":
     {
-      const itemType = interaction.options.data.find(it=>it.name=="item_type")?.value?.toString();
-      const itemAttribute= interaction.options.data.find(it=>it.name=="item_attribute")?.value?.toString();
-      const itemInfluence= interaction.options.data.find(it=>it.name=="item_influence")?.value?.toString();
       if(focusedOption.value?.length<2){
         await interaction.respond(
           []
         )
       }else{
-        
+        const searchResult =statMiniSearch.search(
+          {
+            combineWith: 'AND',
+            fields:["string"],
+            fuzzy:0.2,
+            prefix:true,
+            queries:[
+              focusedOption.value,
+            // ...(itemType?[{
+            //   combineWith:"AND",
+            //   fuzzy:1,
+            //   fields:["indexField"],
+            //   queries: [itemType]
+            // }]:[]),
+            // ...(itemAttribute?[{
+            //   combineWith:"AND",
+            //   fuzzy:1,
+            //   fields:["indexField"],
+            //   queries: [itemAttribute]
+            // }]:[]),
+            // ...(itemInfluence?[{
+            //   combineWith:"AND_NOT",
+            //   fuzzy:1,
+            //   fields:["indexField"],
+            //   queries:  remove(itemTypeSuffix,(it)=>it===itemInfluence)
+            // }]:[]),
+            ] 
+          }
+        ).slice(0,25).map(it=>({name:it.string, value:it.id}));
+        console.debug(searchResult)
         await interaction.respond(
-          statMiniSearch.search(
-            {
-              combineWith: 'AND',
-              fields:["string"],
-              fuzzy:0.2,
-              queries:[
-                focusedOption.value,
-              // ...(itemType?[{
-              //   combineWith:"AND",
-              //   fuzzy:1,
-              //   fields:["indexField"],
-              //   queries: [itemType]
-              // }]:[]),
-              // ...(itemAttribute?[{
-              //   combineWith:"AND",
-              //   fuzzy:1,
-              //   fields:["indexField"],
-              //   queries: [itemAttribute]
-              // }]:[]),
-              // ...(itemInfluence?[{
-              //   combineWith:"AND_NOT",
-              //   fuzzy:1,
-              //   fields:["indexField"],
-              //   queries:  remove(itemTypeSuffix,(it)=>it===itemInfluence)
-              // }]:[]),
-              ] 
-            }
-          ).slice(0,25).map(it=>({name:it.string, value:it.id}))
+          searchResult?.map(it=>(it.name=it.name.substring(0,100),it.value=it.value.substring(0,100), it))??[]
         )
       }
     }

@@ -4,6 +4,7 @@ import stat_translations from "@assets/repoe/stat_translations.min.json";
 import tags from "@assets/repoe/tags.json";
 import MiniSearch from "minisearch";
 import { groupBy, truncate } from "lodash";
+import { MD5 } from "crypto-js";
 
 export type StatCondition={
   min?:number,
@@ -122,73 +123,6 @@ export const conditionalFix:{name:string, type:"full_wild"|"prefix_wild"|"suffix
   }, 
 ]
 
-export const availableMods:{[key:string]:Mods} = Object.fromEntries(Object.entries(mods)
-  .filter(it=>it[1].generation_type.endsWith("fix") ||it[1].implicit_tags.length>0 || it[1].generation_type.endsWith("implicit") || it[1].type.endsWith("ForJewel")  ));
-
-
-const invokedStatIds = Object.fromEntries(Object.values(availableMods).flatMap(it=>it.stats).map(it=>[it.id,true]));
-export const invokedStat:{[key:string]:StatTranslationDetailPerId[]} = Object.fromEntries(
-  (stat_translations as StatTranslation[]).filter(it=>it.ids.find(id=>invokedStatIds[id]))
-    .flatMap(it=>it.ids.map((id,idx)=>[id, it.English.map(it=>({
-      string: it.string,
-      index_handlers: it.index_handlers[idx],
-      format: it.format[idx],
-      condition: it.condition[idx],
-    } as StatTranslationDetailPerId))]))
-);
-export const statToMod = Object.entries(availableMods).flatMap(it=>{
-  return it[1].stats.map(stat=>[stat.id, it[0]])
-}).reduce((cur,it)=>(cur[it[0]]= [...(cur[it[0]]??[]), it[1]], cur),{} as {[key:string]: string[]})
-
-
-export const statMiniSearch = new MiniSearch({fields:["string","indexField"],storeFields:["string", "id"] })
-statMiniSearch.addAll(Object.entries(invokedStat)
-  .flatMap(p=>p[1]
-    .map(c=>({
-      string: c.string,
-      id:p[0],
-      indexField: statToMod[p[0]]?.map(modId=>[availableMods[modId].type,availableMods[modId].spawn_weights.filter(it=>it.weight>0).map(it=>it.tag).join(',')])
-    }))))
-
-
-const tagsUsedInMods = Object.values(availableMods).reduce((cur, mod)=>(mod.spawn_weights?.forEach(it=>cur[it.tag]=true), cur), {} as {[key:string]:boolean})
-export const itemTags = groupBy(tags, (it)=>{
-  if(!tagsUsedInMods[it])
-    return 0;
-  let outStr = it;
-  const matchedPrefix  =itemTypePrefix.find(pre=>it.startsWith(pre));
-  const matchedSuffix  =itemTypeSuffix.find(suf=>it.endsWith(suf));
-  if(matchedPrefix)
-    outStr = outStr.replace(matchedPrefix+"_","");
-  if(matchedSuffix)
-    outStr = outStr.replace("_"+matchedSuffix,"");
-  if(!matchedPrefix && !matchedSuffix){
-    const matchedConditionalFix  =conditionalFix.find(fix=>outStr.includes(fix.name));
-    if(matchedConditionalFix){
-      const slices = outStr.split(matchedConditionalFix.name)
-      switch(matchedConditionalFix.type){
-      case "full_wild":
-        outStr = matchedConditionalFix.name;
-        break;
-      case "prefix_wild":
-        outStr = matchedConditionalFix.name+(slices.length>2?slices[1]:"");
-        break;
-      case "suffix_wild":
-        outStr = (slices.length>2?slices[0]:"")+matchedConditionalFix.name;
-        break;
-      }
-    }
-  }
-  return outStr;
-})
-delete itemTags[0]
-
-export const availableItemType=Object.keys(itemTags).map((it,idx)=>({id: idx,label:it}));
-
-
-export const itemTypeMiniSearch = new MiniSearch({fields:["label"],storeFields:["label"] })
-itemTypeMiniSearch.addAll(availableItemType);
-
 export const JewelTypeMapToTagSearcher:{[key:string]:TagSearcher}={
   "Crimson Jewel":{
     containTags:[],
@@ -251,3 +185,74 @@ export const JewelTypeMapToTagSearcher:{[key:string]:TagSearcher}={
     typeFilter:str=>str.startsWith("Affliction")
   },
 }
+
+// {[key: MD5(mod.key)]: Mods}
+export const availableModsHashMap:{[key:string]:Mods} = Object.fromEntries(Object.entries(mods)
+  .filter(it=>it[1].generation_type.endsWith("fix") ||it[1].implicit_tags.length>0 || it[1].generation_type.endsWith("implicit") || it[1].type.endsWith("ForJewel")  )
+  .map(it=>[MD5(it[0]), it[1]]));
+
+
+const invokedStatIds = Object.fromEntries(Object.values(availableModsHashMap).flatMap(it=>it.stats).map(it=>[it.id,true]));
+// {[key: MD5(stat.id)]: StatTranslationDetailPerId[]}
+export const invokedStatHashMap:{[key:string]:StatTranslationDetailPerId[]} = Object.fromEntries(
+  (stat_translations as StatTranslation[]).filter(it=>it.ids.find(id=>invokedStatIds[id]))
+    .flatMap(it=>it.ids.map((id,idx)=>[MD5(id), it.English.map(it=>({
+      string: it.string,
+      index_handlers: it.index_handlers[idx],
+      format: it.format[idx],
+      condition: it.condition[idx],
+    } as StatTranslationDetailPerId))]))
+);
+// {[key: MD5(stat.id)]: mod.key[]}
+export const statToModHashMap = Object.entries(availableModsHashMap).flatMap(it=>{
+  return it[1].stats.map(stat=>[stat.id, it[0]])
+}).reduce((cur,it)=>(cur[""+MD5(it[0])]= [...(cur[""+MD5(it[0])]??[]), it[1]], cur),{} as {[key:string]: string[]})
+
+// {[key: MD5(stat.id)]: mod.key[]}
+const tagsUsedInMods = Object.values(availableModsHashMap).reduce((cur, mod)=>(mod.spawn_weights?.forEach(it=>cur[it.tag]=true), cur), {} as {[key:string]:boolean})
+export const itemTags = groupBy(tags, (it)=>{
+  if(!tagsUsedInMods[it])
+    return 0;
+  let outStr = it;
+  const matchedPrefix  =itemTypePrefix.find(pre=>it.startsWith(pre));
+  const matchedSuffix  =itemTypeSuffix.find(suf=>it.endsWith(suf));
+  if(matchedPrefix)
+    outStr = outStr.replace(matchedPrefix+"_","");
+  if(matchedSuffix)
+    outStr = outStr.replace("_"+matchedSuffix,"");
+  if(!matchedPrefix && !matchedSuffix){
+    const matchedConditionalFix  =conditionalFix.find(fix=>outStr.includes(fix.name));
+    if(matchedConditionalFix){
+      const slices = outStr.split(matchedConditionalFix.name)
+      switch(matchedConditionalFix.type){
+      case "full_wild":
+        outStr = matchedConditionalFix.name;
+        break;
+      case "prefix_wild":
+        outStr = matchedConditionalFix.name+(slices.length>2?slices[1]:"");
+        break;
+      case "suffix_wild":
+        outStr = (slices.length>2?slices[0]:"")+matchedConditionalFix.name;
+        break;
+      }
+    }
+  }
+  return outStr;
+})
+delete itemTags[0] //remove the tags not used in filtered mod list
+
+export const availableItemType=Object.keys(itemTags).map((it,idx)=>({id: idx,label:it}));
+
+
+export const statMiniSearch = new MiniSearch({fields:["string","indexField"],storeFields:["string", "id"] })
+statMiniSearch.addAll(Object.entries(invokedStatHashMap)
+  .flatMap(p=>p[1]
+    .map(c=>({
+      string: c.string,
+      id:p[0],
+      indexField: statToModHashMap[p[0]]?.map(modId=>[availableModsHashMap[modId].type,availableModsHashMap[modId].spawn_weights.filter(it=>it.weight>0).map(it=>it.tag).join(',')])
+    }))))
+
+
+export const itemTypeMiniSearch = new MiniSearch({fields:["label"],storeFields:["label"] })
+itemTypeMiniSearch.addAll(availableItemType);
