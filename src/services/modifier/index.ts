@@ -5,6 +5,7 @@ import tags from "@assets/repoe/tags.json";
 import MiniSearch from "minisearch";
 import { groupBy, truncate } from "lodash";
 import { MD5 } from "crypto-js";
+import { format } from "@src/utils/textUtils";
 
 export type StatCondition={
   min?:number,
@@ -20,7 +21,7 @@ export type StatTranslation={
   "English": StatTranslationDetail[],
   "ids": string[]
 }
-export type Mods = {
+export type Mod = {
     adds_tags: [];
     domain: string;
     generation_type: string,
@@ -183,11 +184,13 @@ export const JewelTypeMapToTagSearcher:{[key:string]:TagSearcher}={
 }
 
 const enrichStatString = (id: string[], detail: StatTranslationDetail)=>{
-  return id.some(it=>it.startsWith("local_"))? detail.string+" (local)": detail.string
+  let outStr = detail.string;
+  outStr = format(outStr,...detail.format)
+  return id.some(it=>it.startsWith("local_"))? outStr+" (local)": outStr
 }
 
 // {[key: MD5(mod.key)]: Mods}
-export const availableModsHashMap:{[key:string]:Mods} = Object.fromEntries(Object.entries(mods)
+export const availableModsHashMap:{[key:string]:Mod} = Object.fromEntries(Object.entries(mods)
   .filter(it=>it[1].generation_type.endsWith("fix") || it[1].generation_type.endsWith("implicit") || it[1].type.endsWith("ForJewel")  )
   .filter(it=>!["monster", "heist_npc"].some(ban=>it[1].domain===ban))
   .map(it=>[MD5(it[0]), it[1]]));
@@ -247,7 +250,7 @@ export const availableItemType=Object.keys(itemTags).map((it,idx)=>({id: idx,lab
 
 export const findModsWithStat = 
 (statHash: string, options?: {modLocation?: SearchModLocation, itemType?: string, itemAttribute?: string, itemInfluence?: string} )
-: {[key:string]: Mods[]}=>{
+: {[key:string]: Mod[]}=>{
   let mod = statToModHashMap[statHash].map(it=>availableModsHashMap[it]).filter(it=>!!it);
   if(!mod)
     throw new Error("mod not found with statHash "+statHash);
@@ -280,6 +283,10 @@ export const findModsWithStat =
   return groupBy(mod,it=>it.type);
 }
 
+export const getModTable=(mods: Mod[]): {name:string, requiredLevel:number, message:string, tags:string[], mod:Mod}[]=>{
+
+  return [];
+}
 
 export const statMiniSearch = new MiniSearch({fields:["enrichedString","indexField"],storeFields:["enrichedString", "id"] })
 statMiniSearch.addAll(Object.entries(invokedStatHashMap)
@@ -289,7 +296,7 @@ statMiniSearch.addAll(Object.entries(invokedStatHashMap)
       enrichedString: c.enrichedString,
       id:p[0],
       indexField: statToModHashMap[p[0]]
-        ?.map(modId=>[availableModsHashMap[modId].type,availableModsHashMap[modId].spawn_weights.filter(it=>it.weight>0).map(it=>it.tag).join(',')])
+        ?.map(modId=>[availableModsHashMap[modId].type,availableModsHashMap[modId].spawn_weights.map(it=>it.tag).join(',')])
     }))))
 
 export const itemTypeMiniSearch = new MiniSearch({fields:["label"],storeFields:["label"] })

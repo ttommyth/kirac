@@ -1,54 +1,65 @@
-import { ActionRow, ActionRowBuilder, APIApplicationCommandOptionChoice, APIEmbedField, ButtonBuilder, ButtonStyle, CommandInteractionOption, ComponentType, EmbedBuilder, InteractionCollector, MessageActionRowComponent, ModalActionRowComponentBuilder, ModalBuilder, SelectMenuBuilder, SlashCommandBuilder, SlashCommandIntegerOption, TextInputBuilder, TextInputStyle } from "discord.js";
-import { filter, last, minBy, remove } from "lodash";
+import { ActionRow, ActionRowBuilder, APIApplicationCommandOptionChoice, APIEmbedField, Attachment, BaseMessageOptions, ButtonBuilder, ButtonStyle, CommandInteractionOption, ComponentType, Embed, EmbedBuilder, InteractionCollector, MessageActionRowComponent, MessagePayload, ModalActionRowComponentBuilder, ModalBuilder, RawFile, SelectMenuBuilder, SlashCommandBuilder, SlashCommandIntegerOption, TextInputBuilder, TextInputStyle } from "discord.js";
+import { Dictionary, filter, first, groupBy, last, minBy, remove } from "lodash";
 import { StructuredCommand } from "../../types/commands";
 import { ChromaticOptions, ChromaticResult, prebuiltEngine } from '@src/services/chromatic/engine';
-import { genTableImage } from "@src/services/chromatic/tableImage";
-import { availableItemType, availableModsHashMap, findModsWithStat, itemTags, itemTypeMiniSearch, itemTypePrefix, itemTypeSuffix, SearchModLocation, statMiniSearch, statToModHashMap } from "@src/services/modifier";
+import { genChromaticTableImage } from "@src/services/chromatic/tableImage";
+import { availableItemType, availableModsHashMap, findModsWithStat, itemTags, itemTypeMiniSearch, itemTypePrefix, itemTypeSuffix, Mod, SearchModLocation, statMiniSearch, statToModHashMap } from "@src/services/modifier";
 import { md5RegexExp } from "@src/utils/textUtils";
 import { enc } from "crypto-js";
 
+const ModEmbed =(mods:Mod[]): {embeds: EmbedBuilder[], attachment: Attachment[]}=>{
+  // const embeds = new EmbedBuilder().setAuthor({
+  //   name: mods[0].stats
+  // })
+  return [
+
+  ]as any;
+}
+
 const processModifierTilMatch=(statHash: string, options?: {modLocation?: SearchModLocation, itemType?: string, itemAttribute?: string, itemInfluence?: string}, followUpOptions?:{
   modType:string
-})=>{
+}): BaseMessageOptions=>{
 
   const found = findModsWithStat(statHash,options);
   const filteredFound = followUpOptions?.modType?Object.fromEntries(Object.entries(found).filter(it=>it[0]===followUpOptions?.modType)):found;
+  const modTypeActionRow =  new ActionRowBuilder<SelectMenuBuilder>().addComponents(
+    new SelectMenuBuilder()
+      .setCustomId("mod_type")
+      .setMinValues(1).setMaxValues(1).setPlaceholder(followUpOptions?.modType??"Select the most suitable type")
+      .setOptions(...Object.keys(found).map(it=>({label:it, value:it})))
+  );
+  const commandStorageEmbed = new EmbedBuilder().setAuthor({
+    name: "stathash: "+statHash,          
+  }).setFooter({  
+    text:"query: "+enc.Base64.stringify(enc.Utf8.parse(JSON.stringify(options)))
+  });
   console.debug(found);
   if(Object.keys(found).length>1 && Object.keys(filteredFound).length!=1){
     return ({
       content:`found ${Object.keys(found).length} matches, please select ${""} to continue`,
       embeds:[
-        new EmbedBuilder().setAuthor({
-          name: "stathash: "+statHash,          
-        }).setFooter({  
-          text:"query: "+enc.Base64.stringify(enc.Utf8.parse(JSON.stringify(options)))
-        })
+        commandStorageEmbed,
       ],
       components:[
-        new ActionRowBuilder<SelectMenuBuilder>().addComponents(
-          new SelectMenuBuilder()
-            .setCustomId("mod_type")
-            .setMinValues(1).setMaxValues(1).setPlaceholder(followUpOptions?.modType??"Select the most suitable type")
-            .setOptions(...Object.keys(found).map(it=>({label:it, value:it})))
-        )]
+        modTypeActionRow
+      ]       
     })
   }else{
+    const groupBygenerationType = groupBy(first(Object.values(filteredFound)), it=>it.spawn_weights);
+    console.debug(groupBygenerationType);
+    const modEmbeds = Object.entries(groupBygenerationType).map(it=>ModEmbed(it[1]));
     return ({
       content:`${Object.values(filteredFound)[0].map(it=>it.required_level).join(",")}`,
       embeds:[
-        new EmbedBuilder().setAuthor({
-          name: "stathash: "+statHash,          
-        }).setFooter({  
-          text:"query: "+enc.Base64.stringify(enc.Utf8.parse(JSON.stringify(options)))
-        })
+        ...modEmbeds.flatMap(it=>it.embeds),
+        commandStorageEmbed,
+      ],
+      files:[
+        ...modEmbeds.flatMap(it=>it.attachment)
       ],
       components:[
-        new ActionRowBuilder<SelectMenuBuilder>().addComponents(
-          new SelectMenuBuilder()
-            .setCustomId("mod_type")
-            .setMinValues(1).setMaxValues(1).setPlaceholder(followUpOptions?.modType??"Select the most suitable type")
-            .setOptions(...Object.keys(found).map(it=>({label:it, value:it})))
-        )]
+        modTypeActionRow
+      ]
     })
   }
 }
@@ -85,8 +96,9 @@ modifierCommand.onComponentInteraction=async(interaction)=>{
   if(interaction.customId==="mod_type" && interaction.componentType == ComponentType.StringSelect){
     await interaction.deferUpdate();
     const mod_type = interaction.values[0]
-    const options= JSON.parse(enc.Base64.parse(interaction.message.embeds[0]?.footer?.text?.split(":")?.[1]?.trim()??"").toString(enc.Utf8))
-    const statId= interaction.message.embeds[0]?.author?.name?.split(":")?.[1]?.trim() ?? "";
+    const commandStorageEmbed = last(interaction.message.embeds);
+    const options= JSON.parse(enc.Base64.parse(commandStorageEmbed?.footer?.text?.split(":")?.[1]?.trim()??"").toString(enc.Utf8))
+    const statId= commandStorageEmbed?.author?.name?.split(":")?.[1]?.trim() ?? "";
     const response = processModifierTilMatch(statId, options, {modType: mod_type});
     await interaction.message?.edit(response);
   }

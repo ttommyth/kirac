@@ -1,12 +1,12 @@
 import React from 'react';
 import satori from 'satori'
-import fs from 'fs';
+import {readFileSync} from 'fs';
 import { Resvg } from '@resvg/resvg-js';
 import { ChromaticResult } from './engine';
 import { min, minBy } from 'lodash';
-const font = fs.readFileSync("./assets/fonts/NotoSansTC-Regular.otf");
+const font = readFileSync("./assets/fonts/NotoSansTC-Regular.otf");
 
-export const genTableImage=async (result: ChromaticResult[]): Promise<Buffer>=>{
+export const genChromaticTableImage=async (result: ChromaticResult[]): Promise<Buffer>=>{
   const bestCost = minBy(result , it=>((+it.avgCost.replace(",",""))<1)?999999:+it.avgCost.replace(",",""));
   const bestTry = minBy(result , it=>(+it.avgTries.replace(",","")));
   return Buffer.from(new Resvg(await satori(

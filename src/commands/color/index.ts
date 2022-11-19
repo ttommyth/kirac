@@ -2,7 +2,7 @@ import { ActionRow, ActionRowBuilder, APIApplicationCommandOptionChoice, APIEmbe
 import { last, minBy } from "lodash";
 import { StructuredCommand } from "../../types/commands";
 import { ChromaticOptions, ChromaticResult, prebuiltEngine } from '@src/services/chromatic/engine';
-import { genTableImage } from "@src/services/chromatic/tableImage";
+import { genChromaticTableImage } from "@src/services/chromatic/tableImage";
 
 const socketComponentSelectOptions =(prefix:string)=> (
   [...new Array(7)].map((_,idx)=>({
@@ -125,7 +125,7 @@ export const colorCommand: StructuredCommand = async (interaction)=>{
     files:[
       {
         name: "test.png",
-        attachment: await genTableImage(result[0])
+        attachment: await genChromaticTableImage(result[0])
       }
     ],
     components: [
@@ -179,7 +179,7 @@ colorCommand.onComponentInteraction=async(interaction)=>{
       files:[
         {
           name: "test.png",
-          attachment: await genTableImage(result[0])
+          attachment: await genChromaticTableImage(result[0])
         }
       ],
       components: createCommandComponents(options)
@@ -202,7 +202,7 @@ colorCommand.onModalSubmit = async(interaction)=>{
       files:[
         {
           name: "test.png",
-          attachment: await genTableImage(result[0])
+          attachment: await genChromaticTableImage(result[0])
         }
       ],
       components: createCommandComponents(options)
