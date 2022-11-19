@@ -1,19 +1,63 @@
 import { ActionRow, ActionRowBuilder, APIApplicationCommandOptionChoice, APIEmbedField, Attachment, BaseMessageOptions, ButtonBuilder, ButtonStyle, CommandInteractionOption, ComponentType, Embed, EmbedBuilder, InteractionCollector, MessageActionRowComponent, MessagePayload, ModalActionRowComponentBuilder, ModalBuilder, RawFile, SelectMenuBuilder, SlashCommandBuilder, SlashCommandIntegerOption, TextInputBuilder, TextInputStyle } from "discord.js";
-import { Dictionary, filter, first, groupBy, last, minBy, remove } from "lodash";
+import { Dictionary, filter, first, groupBy, last, max, minBy, remove } from "lodash";
 import { StructuredCommand } from "../../types/commands";
 import { ChromaticOptions, ChromaticResult, prebuiltEngine } from '@src/services/chromatic/engine';
 import { genChromaticTableImage } from "@src/services/chromatic/tableImage";
-import { availableItemType, availableModsHashMap, findModsWithStat, itemTags, itemTypeMiniSearch, itemTypePrefix, itemTypeSuffix, Mod, SearchModLocation, statMiniSearch, statToModHashMap } from "@src/services/modifier";
-import { md5RegexExp } from "@src/utils/textUtils";
+import { availableItemTypes, availableModsHashMap, findModsWithStat, getModDescription, getModTable, itemTags, itemTypeMiniSearch, itemTypePrefix, itemTypeSuffix, Mod, modStatsToString, SearchModLocation, statMiniSearch, statToModHashMap } from "@src/services/modifier";
+import { getTable, md5RegexExp } from "@src/utils/textUtils";
 import { enc } from "crypto-js";
+import { fillTextWithEmoji } from "@src/services/emoji/emojiDict";
+import { currencyToName } from "@src/services/translator.ts/MetadataTranslator";
 
 const ModEmbed =(mods:Mod[]): {embeds: EmbedBuilder[], attachment: Attachment[]}=>{
   // const embeds = new EmbedBuilder().setAuthor({
   //   name: mods[0].stats
   // })
-  return [
-
-  ]as any;
+  const result = groupBy(getModTable(mods), it=>it.mod.domain);
+  const outStr:string[] = [];
+  Object.entries(result).forEach(group=>{
+    const sortedMods = group[1].sort((a,b)=>a.requiredLevel-b.requiredLevel);
+    const description= getModDescription(mods);
+    const header = [
+      group[0],
+      description.itemType.join(", "),
+      description?.limitedItemBase?.length>0?`(${description?.limitedItemBase?.join(", ")})`:"",
+      description?.influenceType?.join(", "),
+      ...description.notes
+    ]
+    outStr.push(fillTextWithEmoji(header.filter(it=>it.trim().length).join(" | ")))
+    // outStr.push(sortedMods?.map(it=>it.mod.key)?.join(", "))
+    // console.debug(sortedMods.map(it=>JSON.stringify(it.mod)))
+    outStr.push("```")
+    const tableHeader = [
+      `${"-=====NAME=====-".padEnd(15)}| LV`,
+      "WEIGHT",
+      description.notes.some(it=>it.startsWith("essence")) && "ESSENSE",
+      mods.some(it=>it.matchedCrafting) && "CRAFT COST"
+    ].filter(it=>it)
+    outStr.push(tableHeader.join(" | "))
+    const tableBody = sortedMods
+      .map(it=>{
+        const tableRow=[
+          (it.name??"").padEnd(15).substring(0,15),
+          it.requiredLevel.toString().padStart(2),
+          (max(it.mod.spawn_weights.map(it=>it.weight)) ?? " - ").toString().padEnd(6),
+          first(it.mod.matchedEssence?.name?.split("Essence")),
+          it.mod.matchedCrafting && Object.entries(it.mod.matchedCrafting).map(it=>currencyToName[it[0]]+" * "+ it[1]).join("&")
+        ].filter(it=>it)
+        return tableRow.join(" | ")+`\r\n > ${it.message.replace("\r\n","\r\n > ")}`
+      })
+    outStr.push( 
+      tableBody.join("\r\n")
+    )
+    outStr.push("```")
+  });
+  return {
+    embeds:[
+      new EmbedBuilder().setDescription(outStr.join("\r\n"))
+    ],
+    attachment:[]
+  };
 }
 
 const processModifierTilMatch=(statHash: string, options?: {modLocation?: SearchModLocation, itemType?: string, itemAttribute?: string, itemInfluence?: string}, followUpOptions?:{
@@ -33,7 +77,6 @@ const processModifierTilMatch=(statHash: string, options?: {modLocation?: Search
   }).setFooter({  
     text:"query: "+enc.Base64.stringify(enc.Utf8.parse(JSON.stringify(options)))
   });
-  console.debug(found);
   if(Object.keys(found).length>1 && Object.keys(filteredFound).length!=1){
     return ({
       content:`found ${Object.keys(found).length} matches, please select ${""} to continue`,
@@ -46,17 +89,17 @@ const processModifierTilMatch=(statHash: string, options?: {modLocation?: Search
     })
   }else{
     const groupBygenerationType = groupBy(first(Object.values(filteredFound)), it=>it.spawn_weights);
-    console.debug(groupBygenerationType);
-    const modEmbeds = Object.entries(groupBygenerationType).map(it=>ModEmbed(it[1]));
+    const mods = Object.entries(groupBygenerationType).map(it=>ModEmbed(it[1]))?.filter(it=>it);
+    const modEmbeds = mods?.flatMap(it=>it.embeds)?.filter(it=>it);
+    const attachments = mods.flatMap(it=>it.attachment)?.filter(it=>it);
     return ({
-      content:`${Object.values(filteredFound)[0].map(it=>it.required_level).join(",")}`,
       embeds:[
-        ...modEmbeds.flatMap(it=>it.embeds),
+        ...modEmbeds,
         commandStorageEmbed,
       ],
-      files:[
-        ...modEmbeds.flatMap(it=>it.attachment)
-      ],
+      ...(attachments?.length>0?{files:[
+        ...attachments
+      ]}:{}),
       components:[
         modTypeActionRow
       ]
@@ -73,7 +116,6 @@ export const modifierCommand: StructuredCommand = async (interaction)=>{
     const isMd5=md5RegexExp.test(statId?.trim());
     if(isMd5){
       //is md5
-      console.debug("stat: ", statId);
       const itemType = interaction.options.data.find(it=>it.name=="item_type")?.value?.toString();
       const itemAttribute= interaction.options.data.find(it=>it.name=="item_attribute")?.value?.toString();
       const itemInfluence= interaction.options.data.find(it=>it.name=="item_influence")?.value?.toString();

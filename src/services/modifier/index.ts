@@ -3,9 +3,13 @@ import mods from "@assets/repoe/mods.min.json";
 import stat_translations from "@assets/repoe/stat_translations.min.json";
 import tags from "@assets/repoe/tags.json";
 import MiniSearch from "minisearch";
-import { groupBy, truncate } from "lodash";
+import { groupBy, last, truncate } from "lodash";
 import { MD5 } from "crypto-js";
 import { format } from "@src/utils/textUtils";
+import { SlashCommandSubcommandBuilder } from "discord.js";
+import { ModifierTableRow } from "./modifierImage";
+import { Essence, essenceModToEssence } from "./essence";
+import { craftingBenchModSet } from "./craftingBench";
 
 export type StatCondition={
   min?:number,
@@ -21,6 +25,7 @@ export type StatTranslation={
   "English": StatTranslationDetail[],
   "ids": string[]
 }
+
 export type Mod = {
     adds_tags: [];
     domain: string;
@@ -36,13 +41,17 @@ export type Mod = {
       tag: string,
       weight:number
     }[  ],
-    stats: 
-      {
-        id: string,
-        max: number,
-        min: number
-      }[],
-    type: string
+    stats: ModStat[],
+    type: string,
+    key: string,
+    matchedEssence?: Essence
+    matchedCrafting?: { [key: string]: number | undefined}
+}
+export type ModStat=
+{
+  id: string,
+  max: number,
+  min: number
 }
 export type TagSearcher={
  containTags:string[],
@@ -183,6 +192,8 @@ export const JewelTypeMapToTagSearcher:{[key:string]:TagSearcher}={
   },
 }
 
+const oldMasterCraft = ['StrMaster', 'StrDexMaster', 'StrIntMaster', 'DexMaster','DexIntMaster', 'IntMaster','StrDexIntMaster']
+
 const enrichStatString = (id: string[], detail: StatTranslationDetail)=>{
   let outStr = detail.string;
   outStr = format(outStr,...detail.format)
@@ -190,15 +201,35 @@ const enrichStatString = (id: string[], detail: StatTranslationDetail)=>{
 }
 
 // {[key: MD5(mod.key)]: Mods}
-export const availableModsHashMap:{[key:string]:Mod} = Object.fromEntries(Object.entries(mods)
+export const availableModsHashMap:{[key:string]:Mod} = Object.fromEntries((Object.entries(mods) as [string, Mod][])
   .filter(it=>it[1].generation_type.endsWith("fix") || it[1].generation_type.endsWith("implicit") || it[1].type.endsWith("ForJewel")  )
-  .filter(it=>!["monster", "heist_npc"].some(ban=>it[1].domain===ban))
-  .map(it=>[MD5(it[0]), it[1]]));
-
+  .filter(it=>!["monster", "heist_npc"].some(ban=>it[1].domain===ban)) //domain banning
+  .filter(it=>it[1].domain!="crafted"|| !it[0].startsWith("JunMaster") || it[0].startsWith("JunMaster2")) // banning old jun crafted modifier
+  .filter(it=>it[1].domain!="crafted"|| !oldMasterCraft.some(c=>it[0].startsWith(c)) ) // banning old master crafted modifier
+  .filter(it=>( //ignore if no spawn weights, unless it is exception
+    it[0].includes("Delve") || //delve
+     it[1].domain=="crafted" || //crafted     
+      it[1].domain=="unveiled" || // unveiled
+       it[0].includes("EnhancedLevel50Mod") || //incursion
+       it[1].name?.includes("Elevated") || //elevated
+       it[1].is_essence_only //essence
+  )?true
+    :it[1].spawn_weights.some(s=>s.weight>0)
+  )
+  .map(it=>[MD5(it[0]), {
+    ...it[1],
+    key: it[0],
+    matchedEssence: essenceModToEssence[it[0]],
+    matchedCrafting: craftingBenchModSet[it[0]]
+  }])
+);
+console.debug("do mods have diff weight in spawn_weights?: ", Object.values(availableModsHashMap).find(it=>new Set(it.spawn_weights.map(s=>s.weight).filter(s=>s>0)).values.length>1))
+console.debug("do mods crafting cost?: ", Array.from(new Set(Object.values(craftingBenchModSet).flatMap(it=>Object.keys(it)))))
+console.debug("do mods crafting cost?: ", Object.values(availableModsHashMap).some(it=>it.matchedCrafting))
 
 const invokedStatIds = Object.fromEntries(Object.values(availableModsHashMap).flatMap(it=>it.stats).map(it=>[it.id,true]));
 // {[key: MD5(stat.id)]: StatTranslationDetailPerId[]}
-export const invokedStatHashMap:{[key:string]:(StatTranslationDetail& {enrichedString:string})[]} = Object.fromEntries(
+export const invokedStatHashMap:{[key:string]:(StatTranslationDetail& {enrichedString:string, ids:string[]})[]} = Object.fromEntries(
   (stat_translations as StatTranslation[]).filter(it=>it.ids.find(id=>invokedStatIds[id]))
     .map(stat=>[MD5(stat.ids[0]), stat.English.map(it=>({
       string: it.string,
@@ -206,21 +237,18 @@ export const invokedStatHashMap:{[key:string]:(StatTranslationDetail& {enrichedS
       index_handlers: it.index_handlers,
       format: it.format,
       condition: it.condition,
-    } as StatTranslationDetail & {enrichedString:string}))])
+      ids: stat.ids
+    } as StatTranslationDetail & {enrichedString:string, ids: string[]}))])
 );
 // {[key: MD5(stat.id)]: mod.key[]}
 export const statToModHashMap = Object.entries(availableModsHashMap).flatMap(it=>{
   return it[1].stats.map(stat=>[stat.id, it[0]])
 }).reduce((cur,it)=>(cur[""+MD5(it[0])]= [...(cur[""+MD5(it[0])]??[]), it[1]], cur),{} as {[key:string]: string[]})
 
-// {[key: MD5(stat.id)]: mod.key[]}
-const tagsUsedInMods = Object.values(availableModsHashMap).reduce((cur, mod)=>(mod.spawn_weights?.forEach(it=>cur[it.tag]=true), cur), {} as {[key:string]:boolean})
-export const itemTags = groupBy(tags, (it)=>{
-  if(!tagsUsedInMods[it])
-    return 0;
-  let outStr = it;
-  const matchedPrefix  =itemTypePrefix.find(pre=>it.startsWith(pre));
-  const matchedSuffix  =itemTypeSuffix.find(suf=>it.endsWith(suf));
+const cleanTags = (tag:string):string=>{
+  let outStr = tag;
+  const matchedPrefix  =itemTypePrefix.find(pre=>tag.startsWith(pre));
+  const matchedSuffix  =itemTypeSuffix.find(suf=>tag.endsWith(suf));
   if(matchedPrefix)
     outStr = outStr.replace(matchedPrefix+"_","");
   if(matchedSuffix)
@@ -243,10 +271,18 @@ export const itemTags = groupBy(tags, (it)=>{
     }
   }
   return outStr;
+}
+
+// {[key: MD5(stat.id)]: mod.key[]}
+const tagsUsedInMods = Object.values(availableModsHashMap).reduce((cur, mod)=>(mod.spawn_weights?.forEach(it=>cur[it.tag]=true), cur), {} as {[key:string]:boolean})
+export const itemTags = groupBy(tags, (it)=>{
+  if(!tagsUsedInMods[it])
+    return 0;
+  return cleanTags(it);
 })
 delete itemTags[0] //remove the tags not used in filtered mod list
 
-export const availableItemType=Object.keys(itemTags).map((it,idx)=>({id: idx,label:it}));
+export const availableItemTypes=Object.keys(itemTags).map((it,idx)=>({id: idx,label:it}));
 
 export const findModsWithStat = 
 (statHash: string, options?: {modLocation?: SearchModLocation, itemType?: string, itemAttribute?: string, itemInfluence?: string} )
@@ -283,9 +319,71 @@ export const findModsWithStat =
   return groupBy(mod,it=>it.type);
 }
 
-export const getModTable=(mods: Mod[]): {name:string, requiredLevel:number, message:string, tags:string[], mod:Mod}[]=>{
+export const modStatsToString=(stats: ModStat[]):string[]=>{
+  const consumed:string[]= [];
+  const result:string[] = [];
+  stats.forEach(stat=>{
+    if(consumed.includes(stat.id))
+      return;
+    consumed.push(stat.id);
+    const statTranslation = invokedStatHashMap[MD5(stat.id).toString()];
+    consumed.push(...Array.from(new Set(statTranslation?.flatMap(it=>it.ids))));
+    const matchedStatTranslation = statTranslation?.find(st=>{
+      const unmatchedCondition = st.condition.some(condition=>(condition.max&& condition.max<stat.max)||(condition.min&& condition.min>stat.min))
+      return !unmatchedCondition;
+    });
+    const invokedStat = matchedStatTranslation?.ids?.map(id=>stats.find(s=>s.id==id))??[];
+    const formattedString = format(matchedStatTranslation?.string??"", ...invokedStat.map(it=>`(${it?.min}${(it?.min&&it?.max)?"-":""}${it?.max})`))
+    result.push(formattedString);
+  })
+  return result
+}
 
-  return [];
+export const getModTable=(mods: Mod[]): ModifierTableRow[]=>{
+  const output = mods.map<ModifierTableRow>(it=>{
+    return ({name: it.name??"", requiredLevel:it.required_level , message: modStatsToString(it.stats).join("\r\n"), tags: it.adds_tags, mod: it});
+  });
+  return output;
+}
+
+export const getModDescription=(mods:Mod[]):{
+  itemType: string[],
+  influenceType: string[],
+  limitedItemBase: string[],
+  notes: string[]
+}=>{
+  const considerWeight = mods.some(m=>m.spawn_weights.some(s=>s.weight>0))
+  const availableItemTypeLabels = availableItemTypes.map(it=>it.label)
+  const tags = mods.flatMap(it=>{
+    if(considerWeight)
+      return it.spawn_weights.filter(it=>it.weight>0)
+    else
+      return it.spawn_weights;
+  }).map(s=>s.tag).filter(it=>it!=="default");
+  const itemType = tags.map(it=>availableItemTypeLabels.find(label=>label===cleanTags(it))).filter(it=>it) as string[];
+  const influenceType = tags.map(it=>itemTypeSuffix.find(label=>it.includes(label))).filter(it=>it) as string[];
+  const limitedItemBase = tags.map(it=>itemTypePrefix.find(label=>it.includes(label))).filter(it=>it) as string[];
+  const notes =[];
+  if(mods[0].key.includes("Delve") && mods[0].domain!="delve"){
+    notes.push("delve");
+  }
+  if(mods[0].key.includes("EnhancedLevel50Mod")){
+    notes.push("incursion");
+  }
+  if(mods[0].name?.includes("Elevated")){
+    notes.push("elevated");
+  }
+  const essenceMod = mods.find(it=>it.matchedEssence)
+  if(essenceMod){
+    notes.push(`essence (${last(essenceMod?.matchedEssence?.name?.split("Essence"))})`);
+  }
+  notes.push(mods[0].generation_type);
+  return ({
+    itemType:Array.from(new Set(itemType)),
+    influenceType: Array.from(new Set(influenceType)),
+    limitedItemBase: Array.from(new Set(limitedItemBase)),
+    notes: notes,
+  });
 }
 
 export const statMiniSearch = new MiniSearch({fields:["enrichedString","indexField"],storeFields:["enrichedString", "id"] })
@@ -300,4 +398,4 @@ statMiniSearch.addAll(Object.entries(invokedStatHashMap)
     }))))
 
 export const itemTypeMiniSearch = new MiniSearch({fields:["label"],storeFields:["label"] })
-itemTypeMiniSearch.addAll(availableItemType);
+itemTypeMiniSearch.addAll(availableItemTypes);
