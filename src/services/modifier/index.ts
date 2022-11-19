@@ -192,6 +192,15 @@ export const JewelTypeMapToTagSearcher:{[key:string]:TagSearcher}={
   },
 }
 
+const tagTranslator:{[key:string]:string}={
+  "focus_can_roll_minion_modifiers": "covoking_wand",
+  "ring_can_roll_minion_modifiers": "minion_ring",
+  "not_str": "except_crimson_jewel",
+  "not_dex": "except_viridian_jewel",
+  "not_int": "except_cobalt_jewel",
+
+}
+
 const oldMasterCraft = ['StrMaster', 'StrDexMaster', 'StrIntMaster', 'DexMaster','DexIntMaster', 'IntMaster','StrDexIntMaster']
 
 const enrichStatString = (id: string[], detail: StatTranslationDetail)=>{
@@ -246,6 +255,8 @@ export const statToModHashMap = Object.entries(availableModsHashMap).flatMap(it=
 }).reduce((cur,it)=>(cur[""+MD5(it[0])]= [...(cur[""+MD5(it[0])]??[]), it[1]], cur),{} as {[key:string]: string[]})
 
 const cleanTags = (tag:string):string=>{
+  if(tagTranslator[tag])
+    return tagTranslator[tag]
   let outStr = tag;
   const matchedPrefix  =itemTypePrefix.find(pre=>tag.startsWith(pre));
   const matchedSuffix  =itemTypeSuffix.find(suf=>tag.endsWith(suf));
@@ -346,6 +357,7 @@ export const getModTable=(mods: Mod[]): ModifierTableRow[]=>{
   return output;
 }
 
+const availableItemTypeLabels = availableItemTypes.map(it=>it.label)
 export const getModDescription=(mods:Mod[]):{
   itemType: string[],
   influenceType: string[],
@@ -353,10 +365,9 @@ export const getModDescription=(mods:Mod[]):{
   notes: string[]
 }=>{
   const considerWeight = mods.some(m=>m.spawn_weights.some(s=>s.weight>0))
-  const availableItemTypeLabels = availableItemTypes.map(it=>it.label)
   const tags = mods.flatMap(it=>{
     if(considerWeight)
-      return it.spawn_weights.filter(it=>it.weight>0)
+      return it.spawn_weights.filter(it=>it.weight>0 || it.tag.startsWith("not_"))
     else
       return it.spawn_weights;
   }).map(s=>s.tag).filter(it=>it!=="default");
