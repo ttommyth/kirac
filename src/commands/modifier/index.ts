@@ -9,7 +9,7 @@ import { enc } from "crypto-js";
 import { fillTextWithEmoji } from "@src/services/emoji/emojiDict";
 import { currencyToName } from "@src/services/translator.ts/MetadataTranslator";
 
-const ModEmbed =(mods:Mod[]): {embeds: EmbedBuilder[], attachment: Attachment[]}=>{
+const modEmbed =(mods:Mod[]): {embeds: EmbedBuilder[], attachment: Attachment[]}=>{
   // const embeds = new EmbedBuilder().setAuthor({
   //   name: mods[0].stats
   // })
@@ -17,12 +17,12 @@ const ModEmbed =(mods:Mod[]): {embeds: EmbedBuilder[], attachment: Attachment[]}
   const outStr:string[] = [];
   Object.entries(result).forEach(group=>{
     const sortedMods = group[1].sort((a,b)=>a.requiredLevel-b.requiredLevel);
-    const description= getModDescription(mods);
+    const description= getModDescription(group[1].map(it=>it.mod));
     const header = [
       group[0],
       description.itemType.join(", "),
       description?.limitedItemBase?.length>0?`(${description?.limitedItemBase?.join(", ")})`:"",
-      description?.influenceType?.join(", "),
+      // description?.influenceType?.join(", "),
       ...description.notes
     ]
     outStr.push(fillTextWithEmoji(header.filter(it=>it.trim().length).join(" | ")))
@@ -39,13 +39,13 @@ const ModEmbed =(mods:Mod[]): {embeds: EmbedBuilder[], attachment: Attachment[]}
     const tableBody = sortedMods
       .map(it=>{
         const tableRow=[
-          (it.name??"").padEnd(15).substring(0,15),
+          (it.name??"").padEnd(15).substring(0,14) + ((it.name??"").length>15?".":" "),
           it.requiredLevel.toString().padStart(2),
           (max(it.mod.spawn_weights.map(it=>it.weight)) ?? " - ").toString().padEnd(6),
           first(it.mod.matchedEssence?.name?.split("Essence")),
           it.mod.matchedCrafting && Object.entries(it.mod.matchedCrafting).map(it=>currencyToName[it[0]]+" * "+ it[1]).join("&")
         ].filter(it=>it)
-        return tableRow.join(" | ")+`\r\n > ${it.message.replace("\r\n","\r\n > ")}`
+        return tableRow.join(" | ")+`\r\n > ${it.message.replaceAll("\r\n","\r\n > ")}`
       })
     outStr.push( 
       tableBody.join("\r\n")
@@ -89,7 +89,7 @@ const processModifierTilMatch=(statHash: string, options?: {modLocation?: Search
     })
   }else{
     const groupBygenerationType = groupBy(first(Object.values(filteredFound)), it=>it.spawn_weights);
-    const mods = Object.entries(groupBygenerationType).map(it=>ModEmbed(it[1]))?.filter(it=>it);
+    const mods = Object.entries(groupBygenerationType).map(it=>modEmbed(it[1]))?.filter(it=>it);
     const modEmbeds = mods?.flatMap(it=>it.embeds)?.filter(it=>it);
     const attachments = mods.flatMap(it=>it.attachment)?.filter(it=>it);
     return ({
@@ -109,6 +109,7 @@ const processModifierTilMatch=(statHash: string, options?: {modLocation?: Search
 
 
 export const modifierCommand: StructuredCommand = async (interaction)=>{
+  await interaction.deferReply();
   const statId = interaction.options.data.find(it=>it.name==="mod_stat")?.value?.toString();
   console.debug(statId?.trim())
   if(statId){
@@ -123,15 +124,15 @@ export const modifierCommand: StructuredCommand = async (interaction)=>{
       const options= {itemType, itemAttribute, itemInfluence, modLocation: modLocation??"affix"};
    
       const response = processModifierTilMatch(statId, options);
-      await interaction.reply(response);
+      await interaction.editReply(response);
     }else{
       //is string
-      await interaction.reply(" - "+ statId+" - "+isMd5);
+      await interaction.editReply(" - "+ statId+" - "+isMd5);
     }
 
   }else{
 
-    await interaction.reply("-")
+    await interaction.editReply("-")
   }
 }
 modifierCommand.onComponentInteraction=async(interaction)=>{
@@ -212,8 +213,8 @@ modifierCommand.onAutoComplete= async(interaction)=>{
 }
 
 modifierCommand.structure = new SlashCommandBuilder()
-  .setName("modifier")
-  .setDescription("modifier")
+  .setName("mod")
+  .setDescription("modifier look up")
   .addStringOption((opt)=>(opt.setName("item_type").setDescription("Item Type")).setAutocomplete(true))
   .addStringOption((opt)=>(opt.setName("item_attribute").setDescription("Item Attribute Type (e.g. str, str/dex)")).setChoices(...itemTypePrefix.map(it=>(
     {name:it, value:it}

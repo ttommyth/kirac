@@ -3,7 +3,7 @@ import mods from "@assets/repoe/mods.min.json";
 import stat_translations from "@assets/repoe/stat_translations.min.json";
 import tags from "@assets/repoe/tags.json";
 import MiniSearch from "minisearch";
-import { groupBy, last, truncate } from "lodash";
+import { first, groupBy, last, truncate } from "lodash";
 import { MD5 } from "crypto-js";
 import { format } from "@src/utils/textUtils";
 import { SlashCommandSubcommandBuilder } from "discord.js";
@@ -198,7 +198,25 @@ const tagTranslator:{[key:string]:string}={
   "not_str": "except_crimson_jewel",
   "not_dex": "except_viridian_jewel",
   "not_int": "except_cobalt_jewel",
-
+}
+const translatorTagToOpposite=(tag:string)=>{
+  const matchedNegativeWord = ["except","not"].find(it=>tag.includes(it));
+  if(matchedNegativeWord){
+    return trimUnderscore(tag.replace(matchedNegativeWord,""));
+  }
+  return "not_"+tag
+}
+const trimUnderscore=(text:string)=>{
+  return text.replaceAll("_"," ").trim().replaceAll(" ","_")
+  let startOffset = 0;
+  let endOffset = 0;
+  if(text.startsWith("_")){
+    startOffset++;
+  }
+  if(text.endsWith("_")){
+    endOffset--;
+  }
+  return text.substring(0+startOffset, text.length-1+endOffset);
 }
 
 const oldMasterCraft = ['StrMaster', 'StrDexMaster', 'StrIntMaster', 'DexMaster','DexIntMaster', 'IntMaster','StrDexIntMaster']
@@ -233,7 +251,6 @@ export const availableModsHashMap:{[key:string]:Mod} = Object.fromEntries((Objec
   }])
 );
 console.debug("do mods have diff weight in spawn_weights?: ", Object.values(availableModsHashMap).find(it=>new Set(it.spawn_weights.map(s=>s.weight).filter(s=>s>0)).values.length>1))
-console.debug("do mods crafting cost?: ", Array.from(new Set(Object.values(craftingBenchModSet).flatMap(it=>Object.keys(it)))))
 console.debug("do mods crafting cost?: ", Object.values(availableModsHashMap).some(it=>it.matchedCrafting))
 
 const invokedStatIds = Object.fromEntries(Object.values(availableModsHashMap).flatMap(it=>it.stats).map(it=>[it.id,true]));
@@ -254,33 +271,45 @@ export const statToModHashMap = Object.entries(availableModsHashMap).flatMap(it=
   return it[1].stats.map(stat=>[stat.id, it[0]])
 }).reduce((cur,it)=>(cur[""+MD5(it[0])]= [...(cur[""+MD5(it[0])]??[]), it[1]], cur),{} as {[key:string]: string[]})
 
-const cleanTags = (tag:string):string=>{
-  if(tagTranslator[tag])
-    return tagTranslator[tag]
-  let outStr = tag;
-  const matchedPrefix  =itemTypePrefix.find(pre=>tag.startsWith(pre));
-  const matchedSuffix  =itemTypeSuffix.find(suf=>tag.endsWith(suf));
-  if(matchedPrefix)
-    outStr = outStr.replace(matchedPrefix+"_","");
-  if(matchedSuffix)
-    outStr = outStr.replace("_"+matchedSuffix,"");
+const getTagAffix = (tag:string):{prefix?:string, suffix?:string}=>{
+  let matchedPrefix  =itemTypePrefix.find(pre=>tag.startsWith(pre));
+  let matchedSuffix  =itemTypeSuffix.find(suf=>tag.endsWith(suf));
   if(!matchedPrefix && !matchedSuffix){
-    const matchedConditionalFix  =conditionalFix.find(fix=>outStr.includes(fix.name));
+    const matchedConditionalFix  =conditionalFix.find(fix=>tag.includes(fix.name));
     if(matchedConditionalFix){
-      const slices = outStr.split(matchedConditionalFix.name)
+      const slices = tag.split(matchedConditionalFix.name)
       switch(matchedConditionalFix.type){
       case "full_wild":
-        outStr = matchedConditionalFix.name;
+        matchedPrefix = first(slices)?.trim() ?? undefined;
+        matchedSuffix = last(slices)?.trim() ?? undefined;
         break;
       case "prefix_wild":
-        outStr = matchedConditionalFix.name+(slices.length>2?slices[1]:"");
+        matchedPrefix = first(slices)?.trim() ?? undefined;
         break;
       case "suffix_wild":
-        outStr = (slices.length>2?slices[0]:"")+matchedConditionalFix.name;
+        matchedSuffix = last(slices)?.trim() ?? undefined;
         break;
       }
     }
   }
+  return {
+    prefix: matchedPrefix&& trimUnderscore(matchedPrefix),
+    suffix: matchedSuffix&& trimUnderscore(matchedSuffix)
+  };
+}
+
+const cleanTags = (tag:string):string=>{
+  if(tagTranslator[tag])
+    return tagTranslator[tag]
+  let outStr = tag;
+  const affix = getTagAffix(tag);
+  if(affix.prefix){
+    outStr = outStr.replace(affix.prefix, "");
+  }
+  if(affix.suffix){
+    outStr = outStr.replace(affix.suffix, "");
+  }
+  outStr= trimUnderscore(outStr);
   return outStr;
 }
 
@@ -294,6 +323,7 @@ export const itemTags = groupBy(tags, (it)=>{
 delete itemTags[0] //remove the tags not used in filtered mod list
 
 export const availableItemTypes=Object.keys(itemTags).map((it,idx)=>({id: idx,label:it}));
+const availableItemTypeLabels = availableItemTypes.map(it=>it.label)
 
 export const findModsWithStat = 
 (statHash: string, options?: {modLocation?: SearchModLocation, itemType?: string, itemAttribute?: string, itemInfluence?: string} )
@@ -329,7 +359,10 @@ export const findModsWithStat =
   }
   return groupBy(mod,it=>it.type);
 }
-
+const getNumberString=(numbers:(number|undefined)[]):string|undefined=>{
+  const distNumbers =Array.from(new Set(numbers)).filter(it=>it!=undefined);
+  return distNumbers.map(it=>(it??0)>0?`+${it}`:it).join("-");
+}
 export const modStatsToString=(stats: ModStat[]):string[]=>{
   const consumed:string[]= [];
   const result:string[] = [];
@@ -343,8 +376,9 @@ export const modStatsToString=(stats: ModStat[]):string[]=>{
       const unmatchedCondition = st.condition.some(condition=>(condition.max&& condition.max<stat.max)||(condition.min&& condition.min>stat.min))
       return !unmatchedCondition;
     });
-    const invokedStat = matchedStatTranslation?.ids?.map(id=>stats.find(s=>s.id==id))??[];
-    const formattedString = format(matchedStatTranslation?.string??"", ...invokedStat.map(it=>`(${it?.min}${(it?.min&&it?.max)?"-":""}${it?.max})`))
+    const invokedStat = matchedStatTranslation?.ids?.map(id=>stats.find(s=>s.id==id))??[stat];
+    const formattedString = format(matchedStatTranslation?.string??stat.id.replace("+","{0}")?.replace("-","-{0}"),
+      ...invokedStat.map(it=>`(${getNumberString([it?.min, it?.max])})`))
     result.push(formattedString);
   })
   return result
@@ -357,7 +391,6 @@ export const getModTable=(mods: Mod[]): ModifierTableRow[]=>{
   return output;
 }
 
-const availableItemTypeLabels = availableItemTypes.map(it=>it.label)
 export const getModDescription=(mods:Mod[]):{
   itemType: string[],
   influenceType: string[],
@@ -374,26 +407,32 @@ export const getModDescription=(mods:Mod[]):{
   const itemType = tags.map(it=>availableItemTypeLabels.find(label=>label===cleanTags(it))).filter(it=>it) as string[];
   const influenceType = tags.map(it=>itemTypeSuffix.find(label=>it.includes(label))).filter(it=>it) as string[];
   const limitedItemBase = tags.map(it=>itemTypePrefix.find(label=>it.includes(label))).filter(it=>it) as string[];
-  const notes =[];
+  const notes =new Set<string>();
   if(mods[0].key.includes("Delve") && mods[0].domain!="delve"){
-    notes.push("delve");
+    notes.add("delve");
   }
   if(mods[0].key.includes("EnhancedLevel50Mod")){
-    notes.push("incursion");
+    notes.add("incursion");
   }
   if(mods[0].name?.includes("Elevated")){
-    notes.push("elevated");
+    notes.add("elevated");
   }
   const essenceMod = mods.find(it=>it.matchedEssence)
   if(essenceMod){
-    notes.push(`essence (${last(essenceMod?.matchedEssence?.name?.split("Essence"))})`);
+    notes.add(`essence (${last(essenceMod?.matchedEssence?.name?.split("Essence"))})`);
   }
-  notes.push(mods[0].generation_type);
+  const importantAffix = Object.fromEntries(tags.map(it=>[it, getTagAffix(it)]));
+  if(Object.values(importantAffix).some(it=>it.prefix || it.suffix)){
+    Object.values(importantAffix).flatMap(it=>[it.prefix, it.suffix]).forEach(it=>
+      it?notes.add(it):it
+    );
+  }
+  notes.add(mods[0].generation_type);
   return ({
     itemType:Array.from(new Set(itemType)),
     influenceType: Array.from(new Set(influenceType)),
     limitedItemBase: Array.from(new Set(limitedItemBase)),
-    notes: notes,
+    notes: Array.from(notes),
   });
 }
 

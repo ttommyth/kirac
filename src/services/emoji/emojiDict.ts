@@ -1,5 +1,5 @@
 export const emojiDict:{[key:string]:string}={
-  "ex": "<:ex:1043390406517329941>",
+  "exalt": "<:ex:1043390406517329941>",
   "shaper": "<:shaper:1043390689951621120>",
   "elder": "<:elder:1043390681646903366>",
   "warlord":"<:warlord:1043390693567103026>", 
