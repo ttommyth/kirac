@@ -193,6 +193,7 @@ export const JewelTypeMapToTagSearcher:{[key:string]:TagSearcher}={
 }
 
 const tagTranslator:{[key:string]:string}={
+  "weapon_can_roll_minion_modifiers": "covoking_wand",
   "focus_can_roll_minion_modifiers": "covoking_wand",
   "ring_can_roll_minion_modifiers": "minion_ring",
   "not_str": "except_crimson_jewel",
@@ -451,11 +452,11 @@ export const getModDescription=(mods:Mod[]):{
     notes.add(`essence (${last(essenceMod?.matchedEssence?.name?.split("Essence"))})`);
   }
   // const importantAffix = Object.fromEntries(tags.map(it=>[it, getTagAffix(it)]));
-  // if(normalizedTags.length>0){
-  //   Object.values(normalizedTags).forEach(it=>
-  //     it?notes.add(it):it
-  //   );
-  // }
+  if(normalizedTags.length>0){
+    Object.values(normalizedTags).forEach(it=>
+      it&&notes.add(cleanTags(it))
+    );
+  }
   return ({
     // itemType:Array.from(new Set(itemType)),
     itemType:[],
