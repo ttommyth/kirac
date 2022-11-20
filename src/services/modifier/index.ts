@@ -398,21 +398,50 @@ export const getModDescription=(mods:Mod[]):{
   notes: string[]
 }=>{
   const considerWeight = mods.some(m=>m.spawn_weights.some(s=>s.weight>0))
-  const tags = mods.flatMap(it=>{
-    if(considerWeight)
+  const weights = mods.flatMap(it=>{
+    if(considerWeight){
       return it.spawn_weights.filter(it=>it.weight>0 || it.tag.startsWith("not_"))
+    }
     else
       return it.spawn_weights;
-  }).map(s=>s.tag).filter(it=>it!=="default");
-  const itemType = tags.map(it=>availableItemTypeLabels.find(label=>label===cleanTags(it))).filter(it=>it) as string[];
+  });
+  const tags = weights.map(s=>s.tag).filter(it=>it!=="default")
+  const normalizedTags = weights.flatMap(s=>{
+    const affix=getTagAffix(s.tag);
+    return [affix.prefix, affix.suffix, cleanTags(s.tag)].map(tag=>tag && (s.weight<=0?translatorTagToOpposite(tag):tag)) as string[]
+  }).filter(it=>it).filter(it=>it!=="default")
+  const itemType = weights.map(s=>(s.weight<=0?translatorTagToOpposite(s.tag):s.tag)).filter(it=>it!=="default")
+    .map(it=>availableItemTypeLabels.find(label=>label===cleanTags(it))?cleanTags(it):undefined ).filter(it=>it) as string[];
   const influenceType = tags.map(it=>itemTypeSuffix.find(label=>it.includes(label))).filter(it=>it) as string[];
   const limitedItemBase = tags.map(it=>itemTypePrefix.find(label=>it.includes(label))).filter(it=>it) as string[];
   const notes =new Set<string>();
+  notes.add("**"+mods[0].generation_type+"**");
   if(mods[0].key.includes("Delve") && mods[0].domain!="delve"){
     notes.add("delve");
   }
   if(mods[0].key.includes("EnhancedLevel50Mod")){
     notes.add("incursion");
+  }
+  if(mods[0].type.includes("ForJewel")){
+    if(normalizedTags.includes("abyss_jewel")){
+      if(normalizedTags.includes("melee"))
+        notes.add("murderous_eye");
+      if(normalizedTags.includes("ranged"))
+        notes.add("searching_eye");
+      if(normalizedTags.includes("caster"))
+        notes.add("hypnotic_eye");
+      if(normalizedTags.includes("summoner"))
+        notes.add("ghastly_eye");
+      notes.add("abyss_jewel");
+    }else{
+      if(normalizedTags.includes("str") || normalizedTags.includes("crimson_jewel"))
+        notes.add("crimson_jewel");
+      if(normalizedTags.includes("dex") || normalizedTags.includes("viridian_jewel"))
+        notes.add("viridian_jewel");
+      if(normalizedTags.includes("int") || normalizedTags.includes("cobalt_jewel"))
+        notes.add("cobalt_jewel");
+      notes.add("jewel");
+    }
   }
   if(mods[0].name?.includes("Elevated")){
     notes.add("elevated");
@@ -421,18 +450,18 @@ export const getModDescription=(mods:Mod[]):{
   if(essenceMod){
     notes.add(`essence (${last(essenceMod?.matchedEssence?.name?.split("Essence"))})`);
   }
-  const importantAffix = Object.fromEntries(tags.map(it=>[it, getTagAffix(it)]));
-  if(Object.values(importantAffix).some(it=>it.prefix || it.suffix)){
-    Object.values(importantAffix).flatMap(it=>[it.prefix, it.suffix]).forEach(it=>
-      it?notes.add(it):it
-    );
-  }
-  notes.add(mods[0].generation_type);
+  // const importantAffix = Object.fromEntries(tags.map(it=>[it, getTagAffix(it)]));
+  // if(normalizedTags.length>0){
+  //   Object.values(normalizedTags).forEach(it=>
+  //     it?notes.add(it):it
+  //   );
+  // }
   return ({
-    itemType:Array.from(new Set(itemType)),
+    // itemType:Array.from(new Set(itemType)),
+    itemType:[],
     influenceType: Array.from(new Set(influenceType)),
     limitedItemBase: Array.from(new Set(limitedItemBase)),
-    notes: Array.from(notes),
+    notes: Array.from(new Set([...notes,...itemType])),
   });
 }
 

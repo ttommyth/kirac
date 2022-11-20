@@ -21,7 +21,7 @@ const modEmbed =(mods:Mod[]): {embeds: EmbedBuilder[], attachment: Attachment[]}
     const header = [
       group[0],
       description.itemType.join(", "),
-      description?.limitedItemBase?.length>0?`(${description?.limitedItemBase?.join(", ")})`:"",
+      // description?.limitedItemBase?.length>0?`(${description?.limitedItemBase?.join(", ")})`:"",
       // description?.influenceType?.join(", "),
       ...description.notes
     ]
@@ -181,7 +181,7 @@ modifierCommand.onAutoComplete= async(interaction)=>{
             fuzzy:0.2,
             prefix:true,
             queries:[
-              focusedOption.value,
+              focusedOption.value.replaceAll(/[0-9]/g," "),
             // ...(itemType?[{
             //   combineWith:"AND",
             //   fuzzy:1,
