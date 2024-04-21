@@ -113,3 +113,6 @@ dev.db-journal
 # RePOE
 assets/repoe/*
 !assets/repoe/.gitkeep
+
+# vscode
+.vscode/settings.json
